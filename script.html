@@ -1,0 +1,383 @@
+<script>
+  let currentUser = null;
+  let dashboardChartInstance = null;
+  let currentDetailRowIndex = null;
+
+  // Login
+  function handleLogin(event) {
+    event.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const msgDiv = document.getElementById('login-message');
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+    msgDiv.style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        if (response.success) {
+          currentUser = response.name;
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('app-container').style.display = 'flex';
+          document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser;
+          
+          // Defaults for dashboard
+          const today = new Date();
+          const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+          document.getElementById('dash-end-date').valueAsDate = today;
+          document.getElementById('dash-start-date').valueAsDate = firstDay;
+          
+          fetchDashboardStats();
+        } else {
+          msgDiv.style.display = 'block';
+          msgDiv.textContent = response.message;
+          btn.disabled = false;
+          btn.textContent = 'Login';
+        }
+      })
+      .withFailureHandler(function(error) {
+        msgDiv.style.display = 'block';
+        msgDiv.textContent = 'Error: ' + error.message;
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      })
+      .login(user, pass);
+  }
+
+  function logout() {
+    currentUser = null;
+    document.getElementById('login-form').reset();
+    document.getElementById('app-container').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  function showSection(sectionId, element) {
+    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(sectionId).classList.add('active');
+    
+    if (element) {
+      document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
+      element.classList.add('active');
+    }
+    closeUserDetail();
+  }
+
+  // --- Dashboard ---
+  function fetchDashboardStats() {
+    const start = document.getElementById('dash-start-date').value;
+    const end = document.getElementById('dash-end-date').value;
+    
+    google.script.run
+      .withSuccessHandler(function(stats) {
+        document.getElementById('stat-total').textContent = stats.total;
+        document.getElementById('stat-confirmed').textContent = stats.confirmed;
+        renderChart(stats.timeline);
+      })
+      .getDashboardStats(start, end);
+  }
+
+  function renderChart(timeline) {
+    const ctx = document.getElementById('dashboardChart').getContext('2d');
+    const labels = Object.keys(timeline);
+    const totalData = labels.map(l => timeline[l].total);
+    const confirmedData = labels.map(l => timeline[l].confirmed);
+
+    if (dashboardChartInstance) dashboardChartInstance.destroy();
+
+    dashboardChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Total Enquiries', data: totalData, backgroundColor: '#1a73e8' },
+          { label: 'Confirmed', data: confirmedData, backgroundColor: '#34a853' }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+  }
+
+  // --- All Leads ---
+  function clearAllLeadsFilters() {
+    document.getElementById('al-filter-name').value = '';
+    document.getElementById('al-filter-phone').value = '';
+    document.getElementById('al-filter-city').value = '';
+    document.getElementById('al-filter-start').value = '';
+    document.getElementById('al-filter-end').value = '';
+    document.getElementById('al-filter-sort').value = 'fresh';
+    fetchAllLeads(1);
+  }
+
+  function fetchAllLeads(page) {
+    const params = {
+      name: document.getElementById('al-filter-name').value,
+      phone: document.getElementById('al-filter-phone').value,
+      city: document.getElementById('al-filter-city').value,
+      startDate: document.getElementById('al-filter-start').value,
+      endDate: document.getElementById('al-filter-end').value,
+      sortOrder: document.getElementById('al-filter-sort').value,
+      page: page
+    };
+    
+    document.getElementById('al-loading').style.display = 'block';
+    document.getElementById('al-list').innerHTML = '';
+    document.getElementById('al-pagination').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        document.getElementById('al-loading').style.display = 'none';
+        renderLeadsList('al-list', response.leads);
+        renderPagination('al-pagination', response.currentPage, response.totalPages, 'fetchAllLeads');
+      })
+      .getFilteredLeads(params);
+  }
+
+  // --- Today Calls ---
+  function clearTodayCallsFilters() {
+    document.getElementById('tc-filter-name').value = '';
+    document.getElementById('tc-filter-phone').value = '';
+    document.getElementById('tc-filter-city').value = '';
+    document.getElementById('tc-filter-sort').value = 'fresh';
+    fetchTodayCalls(1);
+  }
+
+  function fetchTodayCalls(page) {
+    const params = {
+      name: document.getElementById('tc-filter-name').value,
+      phone: document.getElementById('tc-filter-phone').value,
+      city: document.getElementById('tc-filter-city').value,
+      sortOrder: document.getElementById('tc-filter-sort').value,
+      isTodayOnly: true,
+      page: page
+    };
+    
+    document.getElementById('tc-loading').style.display = 'block';
+    document.getElementById('tc-list').innerHTML = '';
+    document.getElementById('tc-pagination').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        document.getElementById('tc-loading').style.display = 'none';
+        renderLeadsList('tc-list', response.leads);
+        renderPagination('tc-pagination', response.currentPage, response.totalPages, 'fetchTodayCalls');
+      })
+      .getFilteredLeads(params);
+  }
+
+  // --- Shared List Render ---
+  function renderLeadsList(containerId, leads) {
+    const container = document.getElementById(containerId);
+    if (leads.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light)">No records found matching criteria.</p>';
+      return;
+    }
+
+    let html = '';
+    leads.forEach(lead => {
+      html += `
+        <div class="lead-item">
+          <div class="lead-info">
+            <span class="lead-name" onclick="openUserDetail(${lead.rowIndex})">${lead.name}</span>
+            <div class="lead-meta">
+              <span><span class="material-icons">phone</span> ${lead.phone}</span>
+              <span><span class="material-icons">location_on</span> ${lead.city}</span>
+              <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
+              <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
+            </div>
+            <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
+              <strong>Latest Note:</strong> ${lead.latestConversation}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function renderPagination(containerId, currentPage, totalPages, fetchFuncStr) {
+    if (totalPages <= 1) return;
+    const container = document.getElementById(containerId);
+    let html = '';
+    
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="${fetchFuncStr}(${currentPage - 1})">Prev</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="${fetchFuncStr}(${i})">${i}</button>`;
+      } else if (i === currentPage - 3 || i === currentPage + 3) {
+        html += `<span style="padding: 6px;">...</span>`;
+      }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="${fetchFuncStr}(${currentPage + 1})">Next</button>`;
+    
+    container.innerHTML = html;
+  }
+
+  // --- User Detail View (Overlay) ---
+  function openUserDetail(rowIndex) {
+    currentDetailRowIndex = rowIndex;
+    document.getElementById('user-detail-overlay').style.display = 'flex';
+    document.getElementById('ud-body').innerHTML = '<div class="loading">Loading details...</div>';
+    document.getElementById('ud-name').textContent = 'Loading...';
+
+    google.script.run
+      .withSuccessHandler(renderUserDetail)
+      .getUserDetails(rowIndex);
+  }
+
+  function closeUserDetail() {
+    document.getElementById('user-detail-overlay').style.display = 'none';
+    currentDetailRowIndex = null;
+    // Refresh current visible list to reflect any changes
+    if (document.getElementById('all-leads-section').classList.contains('active')) {
+      fetchAllLeads(document.querySelector('#al-pagination .active') ? parseInt(document.querySelector('#al-pagination .active').textContent) : 1);
+    } else if (document.getElementById('today-calls-section').classList.contains('active')) {
+      fetchTodayCalls(document.querySelector('#tc-pagination .active') ? parseInt(document.querySelector('#tc-pagination .active').textContent) : 1);
+    }
+  }
+
+  function renderUserDetail(user) {
+    document.getElementById('ud-name').textContent = user.name;
+    
+    let convHtml = '';
+    if (user.conversations && user.conversations.length > 0) {
+      convHtml += '<div class="conversations-list" id="ud-conv-list">';
+      user.conversations.forEach((conv, idx) => {
+        let agentStr = conv.agent ? `<span class="conversation-agent">[${conv.agent}]</span>` : '';
+        convHtml += `
+          <div class="conversation-item">
+            <div class="conversation-header">Conversation ${idx + 1} - ${conv.date} ${agentStr}</div>
+            <div class="conversation-text">${conv.text}</div>
+          </div>`;
+      });
+      convHtml += '</div>';
+    } else {
+      convHtml = `<div class="conversations-list" id="ud-conv-list"><p>No conversations yet.</p></div>`;
+    }
+
+    const statusOptions = ['Pending', 'Confirmed', 'Not Interested', 'Follow Up'].map(opt => 
+      `<option value="${opt}" ${user.status === opt ? 'selected' : ''}>${opt}</option>`
+    ).join('');
+
+    const html = `
+      <div class="ud-meta-grid">
+        <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value" id="disp-city">${user.city}</div></div>
+        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone">${user.phone}</div></div>
+        <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
+        <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
+        <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status">${user.status || 'Pending'}</div></div>
+        <div class="ud-row"><div class="ud-label">Branch:</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Contact Again Date:</div><div class="ud-value" id="disp-cad">${user.contactAgainDate || 'None'}</div></div>
+      </div>
+
+      <div class="ud-section-title">Conversations</div>
+      ${convHtml}
+
+      <div class="update-box">
+        <div class="update-box-title">Add Note & Update Status</div>
+        <div class="update-grid">
+          <div class="form-group">
+            <label>Update Status</label>
+            <select id="ud-update-status">${statusOptions}</select>
+          </div>
+          <div class="form-group">
+            <label>Update Branch</label>
+            <input type="text" id="ud-update-branch" value="${user.branch || ''}" placeholder="e.g. Downtown">
+          </div>
+          <div class="form-group">
+            <label>Contact Again Date</label>
+            <input type="date" id="ud-update-cad" value="${user.contactAgainDate || ''}">
+          </div>
+        </div>
+        <div class="form-group">
+          <textarea id="ud-new-conv" rows="2" placeholder="Add latest conversation notes..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveUserDetailConversation(this)">Add Note & Update</button>
+      </div>
+    `;
+    
+    document.getElementById('ud-body').innerHTML = html;
+  }
+
+  function saveUserDetailConversation(btn) {
+    if (!currentDetailRowIndex) return;
+    
+    const textArea = document.getElementById('ud-new-conv');
+    const text = textArea.value.trim();
+    if (!text) return alert('Please enter conversation notes');
+    
+    const status = document.getElementById('ud-update-status').value;
+    const branch = document.getElementById('ud-update-branch').value;
+    const cad = document.getElementById('ud-update-cad').value;
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    google.script.run
+      .withSuccessHandler(function(response) {
+        btn.disabled = false;
+        btn.textContent = 'Add Note & Update';
+        textArea.value = '';
+        
+        // Update display text
+        if(response.status) document.getElementById('disp-status').textContent = response.status;
+        if(response.branch) document.getElementById('disp-branch').textContent = response.branch;
+        if(response.contactAgainDate) document.getElementById('disp-cad').textContent = response.contactAgainDate;
+
+        // Re-render conversation list inline
+        const convListDiv = document.getElementById('ud-conv-list');
+        let newHtml = '';
+        response.conversations.forEach((conv, idx) => {
+          let agentStr = conv.agent ? `<span class="conversation-agent">[${conv.agent}]</span>` : '';
+          newHtml += `
+            <div class="conversation-item">
+              <div class="conversation-header">Conversation ${idx + 1} - ${conv.date} ${agentStr}</div>
+              <div class="conversation-text">${conv.text}</div>
+            </div>`;
+        });
+        convListDiv.innerHTML = newHtml;
+      })
+      .withFailureHandler(function(error) {
+        btn.disabled = false;
+        btn.textContent = 'Add Note & Update';
+        alert('Error saving note: ' + error.message);
+      })
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad);
+  }
+
+  // --- Add Data Form ---
+  function handleFormSubmit(event) {
+    event.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    const msgDiv = document.getElementById('add-message');
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    msgDiv.className = 'message';
+    msgDiv.textContent = '';
+
+    const form = document.getElementById('add-data-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        msgDiv.className = 'message success';
+        msgDiv.textContent = response.message;
+        form.reset();
+        btn.disabled = false;
+        btn.textContent = 'Save Customer';
+        setTimeout(() => { msgDiv.style.display = 'none'; }, 3000);
+      })
+      .withFailureHandler(function(error) {
+        msgDiv.className = 'message error';
+        msgDiv.textContent = 'Error: ' + error.message;
+        btn.disabled = false;
+        btn.textContent = 'Save Customer';
+      })
+      .addCustomer(data);
+  }
+</script>

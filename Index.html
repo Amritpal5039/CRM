@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= include('styles'); ?>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+      <div class="login-card">
+        <img src="https://drive.google.com/uc?export=view&id=1d__SS0NN98N_uK7ngoogZlbm-Wx_brsF" alt="Logo" class="login-logo" onerror="this.style.display='none'">
+        <h2>Login</h2>
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100" id="login-btn">Login</button>
+          <div id="login-message" class="message error"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="app-container" style="display: none;">
+      <!-- Sidebar -->
+      <nav class="sidebar">
+        <div class="logo">
+          <img src="https://drive.google.com/uc?export=view&id=1d__SS0NN98N_uK7ngoogZlbm-Wx_brsF" alt="Logo" style="max-width: 100%; max-height: 50px; margin-bottom: 10px;" onerror="this.style.display='none'">
+          <h2>Customer Care</h2>
+          <div id="logged-in-user" style="font-size: 12px; color: var(--text-light); margin-top: 5px;"></div>
+        </div>
+        <ul class="nav-links">
+          <li class="active" onclick="showSection('dashboard-section', this); fetchDashboardStats();">
+            <span class="material-icons">dashboard</span> Dashboard
+          </li>
+          <li onclick="showSection('all-leads-section', this); fetchAllLeads(1);">
+            <span class="material-icons">list_alt</span> See All Leads
+          </li>
+          <li onclick="showSection('add-data-section', this)">
+            <span class="material-icons">add_circle</span> Add New Data
+          </li>
+          <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
+            <span class="material-icons">contact_phone</span> Today Calls
+          </li>
+          <li onclick="logout()" style="margin-top: auto;">
+            <span class="material-icons">logout</span> Logout
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="main-content" id="main-content-area">
+        
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="content-section active">
+          <h1>Dashboard</h1>
+          
+          <div class="filter-bar card">
+            <div class="filter-group">
+              <label>Start Date</label>
+              <input type="date" id="dash-start-date">
+            </div>
+            <div class="filter-group">
+              <label>End Date</label>
+              <input type="date" id="dash-end-date">
+            </div>
+            <div class="filter-group" style="align-items: flex-end;">
+              <button class="btn btn-primary" onclick="fetchDashboardStats()">Filter</button>
+            </div>
+          </div>
+
+          <div class="stats-cards">
+            <div class="stat-card">
+              <h3>Total Enquiries</h3>
+              <div id="stat-total" class="stat-value">0</div>
+            </div>
+            <div class="stat-card">
+              <h3>Confirmed Clients</h3>
+              <div id="stat-confirmed" class="stat-value text-success">0</div>
+            </div>
+          </div>
+
+          <div class="chart-container card mt-20">
+            <canvas id="dashboardChart"></canvas>
+          </div>
+        </section>
+
+        <!-- All Leads Section -->
+        <section id="all-leads-section" class="content-section">
+          <h1>All Leads</h1>
+          
+          <div class="filter-bar card">
+            <div class="filter-group">
+              <label>Name</label>
+              <input type="text" id="al-filter-name" placeholder="Search name">
+            </div>
+            <div class="filter-group">
+              <label>Phone</label>
+              <input type="text" id="al-filter-phone" placeholder="Search phone">
+            </div>
+            <div class="filter-group">
+              <label>Location</label>
+              <input type="text" id="al-filter-city" placeholder="Search city">
+            </div>
+            <div class="filter-group">
+              <label>Start Date</label>
+              <input type="date" id="al-filter-start">
+            </div>
+            <div class="filter-group">
+              <label>End Date</label>
+              <input type="date" id="al-filter-end">
+            </div>
+            <div class="filter-group">
+              <label>Sort By</label>
+              <select id="al-filter-sort">
+                <option value="fresh">Fresh First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
+            <div class="filter-group" style="align-items: flex-end;">
+              <button class="btn btn-primary" onclick="fetchAllLeads(1)">Apply</button>
+              <button class="btn btn-outline ml-10" onclick="clearAllLeadsFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div id="al-loading" class="loading">Loading leads...</div>
+          <div id="al-list" class="list-container mt-20"></div>
+          
+          <div class="pagination" id="al-pagination"></div>
+        </section>
+
+        <!-- Add Data Section -->
+        <section id="add-data-section" class="content-section">
+          <h1>Add New Data</h1>
+          <div class="form-container">
+            <form id="add-data-form" onsubmit="handleFormSubmit(event)">
+              <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+              </div>
+              <div class="form-group">
+                <label for="city">City:</label>
+                <input type="text" id="city" name="city" required>
+              </div>
+              <div class="form-group">
+                <label for="phone">Phone Number:</label>
+                <input type="tel" id="phone" name="phone" required>
+              </div>
+              <div class="form-group">
+                <label for="enquiryDate">Enquiry Date:</label>
+                <input type="date" id="enquiryDate" name="enquiryDate" required>
+              </div>
+              <div class="form-group">
+                <label for="source">Source:</label>
+                <input type="text" id="source" name="source" required>
+              </div>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Save Customer</button>
+              <div id="add-message" class="message"></div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Today Calls Section -->
+        <section id="today-calls-section" class="content-section">
+          <h1>Today's Call Contact List</h1>
+          
+          <div class="filter-bar card">
+            <div class="filter-group">
+              <label>Name</label>
+              <input type="text" id="tc-filter-name" placeholder="Search name">
+            </div>
+            <div class="filter-group">
+              <label>Phone</label>
+              <input type="text" id="tc-filter-phone" placeholder="Search phone">
+            </div>
+            <div class="filter-group">
+              <label>Location</label>
+              <input type="text" id="tc-filter-city" placeholder="Search city">
+            </div>
+            <div class="filter-group">
+              <label>Sort By</label>
+              <select id="tc-filter-sort">
+                <option value="fresh">Fresh First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
+            <div class="filter-group" style="align-items: flex-end;">
+              <button class="btn btn-primary" onclick="fetchTodayCalls(1)">Apply</button>
+              <button class="btn btn-outline ml-10" onclick="clearTodayCallsFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div id="tc-loading" class="loading">Loading today's contacts...</div>
+          <div id="tc-list" class="list-container mt-20"></div>
+          
+          <div class="pagination" id="tc-pagination"></div>
+        </section>
+
+      </main>
+
+      <!-- User Detail View Overlay -->
+      <div id="user-detail-overlay" class="detail-overlay" style="display: none;">
+        <div class="detail-container">
+          <div class="detail-header">
+            <h2 id="ud-name" style="color: var(--primary); margin: 0;"></h2>
+            <button class="btn btn-outline btn-close" onclick="closeUserDetail()">Close</button>
+          </div>
+          
+          <div class="detail-body" id="ud-body">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <?!= include('script'); ?>
+  </body>
+</html>
