@@ -2,6 +2,7 @@ function doGet() {
   return HtmlService.createTemplateFromFile("Index")
     .evaluate()
     .setTitle("Customer Care Dashboard")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

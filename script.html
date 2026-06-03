@@ -53,6 +53,17 @@
     document.getElementById('login-screen').style.display = 'flex';
   }
 
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    // On mobile, toggle 'open' class for off-canvas menu
+    if (window.innerWidth <= 768) {
+      sidebar.classList.toggle('open');
+    } else {
+      // On desktop, toggle 'collapsed' class
+      sidebar.classList.toggle('collapsed');
+    }
+  }
+
   function showSection(sectionId, element) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
@@ -62,6 +73,11 @@
       element.classList.add('active');
     }
     closeUserDetail();
+
+    // Auto-close sidebar on mobile after clicking a link
+    if (window.innerWidth <= 768) {
+      document.getElementById('sidebar').classList.remove('open');
+    }
   }
 
   // --- Dashboard ---
@@ -197,7 +213,7 @@
           <div class="lead-info">
             <span class="lead-name" onclick="openUserDetail(${lead.rowIndex})">${lead.name}</span>
             <div class="lead-meta">
-              <span><span class="material-icons">phone</span> ${lead.phone}</span>
+              <span><span class="material-icons">phone</span> <a href="tel:${lead.phone}" style="color: inherit; text-decoration: none;">${lead.phone}</a></span>
               <span><span class="material-icons">location_on</span> ${lead.city}</span>
               <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
               <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
@@ -206,6 +222,11 @@
             <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
               <strong>Latest Note:</strong> ${lead.latestConversation}
             </div>
+          </div>
+          <div class="lead-actions" style="margin-left: 15px;">
+            <a href="tel:${lead.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 50%;">
+              <span class="material-icons" style="font-size: 20px; margin: 0;">call</span>
+            </a>
           </div>
         </div>
       `;
@@ -286,7 +307,7 @@
     const html = `
       <div class="ud-meta-grid">
         <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value" id="disp-city">${user.city}</div></div>
-        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone">${user.phone}</div></div>
+        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone"><a href="tel:${user.phone}" style="color: var(--primary); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 5px;"><span class="material-icons" style="font-size: 16px;">call</span> ${user.phone}</a></div></div>
         <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
         <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
         <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${user.status || 'Pending'}</div></div>

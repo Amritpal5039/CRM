@@ -31,33 +31,42 @@
     <!-- Main App Container -->
     <div id="app-container" class="app-container" style="display: none;">
       <!-- Sidebar -->
-      <nav class="sidebar">
+      <nav class="sidebar" id="sidebar">
         <div class="logo">
           <img src="https://drive.google.com/uc?export=view&id=1d__SS0NN98N_uK7ngoogZlbm-Wx_brsF" alt="Logo" style="max-width: 100%; max-height: 50px; margin-bottom: 10px;" onerror="this.style.display='none'">
           <h2>Customer Care</h2>
           <div id="logged-in-user" style="font-size: 12px; color: var(--text-light); margin-top: 5px;"></div>
         </div>
+        <button class="sidebar-toggle btn btn-outline" onclick="toggleSidebar()">
+          <span class="material-icons">menu</span>
+        </button>
         <ul class="nav-links">
           <li class="active" onclick="showSection('dashboard-section', this); fetchDashboardStats();">
-            <span class="material-icons">dashboard</span> Dashboard
+            <span class="material-icons">dashboard</span> <span class="link-text">Dashboard</span>
           </li>
           <li onclick="showSection('all-leads-section', this); fetchAllLeads(1);">
-            <span class="material-icons">list_alt</span> See All Leads
+            <span class="material-icons">list_alt</span> <span class="link-text">See All Leads</span>
           </li>
           <li onclick="showSection('add-data-section', this)">
-            <span class="material-icons">add_circle</span> Add New Data
+            <span class="material-icons">add_circle</span> <span class="link-text">Add New Data</span>
           </li>
           <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
-            <span class="material-icons">contact_phone</span> Today Calls
+            <span class="material-icons">contact_phone</span> <span class="link-text">Today Calls</span>
           </li>
           <li onclick="logout()" style="margin-top: auto;">
-            <span class="material-icons">logout</span> Logout
+            <span class="material-icons">logout</span> <span class="link-text">Logout</span>
           </li>
         </ul>
       </nav>
 
       <!-- Main Content -->
       <main class="main-content" id="main-content-area">
+        <div class="mobile-header">
+           <button class="mobile-menu-btn" onclick="toggleSidebar()">
+             <span class="material-icons">menu</span>
+           </button>
+           <h2>Customer Care</h2>
+        </div>
         
         <!-- Dashboard Section -->
         <section id="dashboard-section" class="content-section active">
