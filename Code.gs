@@ -27,6 +27,7 @@ function getSheet() {
       "Branch",
       "Contact Again Date",
       "Conversations",
+      "Registration ID",
     ]);
   }
   return sheet;
@@ -66,6 +67,7 @@ function addCustomer(data) {
     "", // Branch
     "", // Contact Again Date
     "[]", // empty conversations JSON
+    "", // Registration ID
   ]);
   return { success: true, message: "Customer added successfully" };
 }
@@ -108,10 +110,13 @@ function getFilteredLeads(params) {
   const sPhone = (params.phone || "").trim().toLowerCase();
   const sCity = (params.city || "").trim().toLowerCase();
   const isTodayOnly = params.isTodayOnly || false;
+  const excludeConfirmed = params.excludeConfirmed || false;
+  const requireStatus = params.requireStatus || null;
+  const filterStatus = params.status || null; // For the "All Leads" dropdown
 
-  let startDate = params.startDate ? new Date(params.startDate) : null;
-  let endDate = params.endDate ? new Date(params.endDate) : null;
-  if (endDate) endDate.setHours(23, 59, 59, 999);
+  // HTML date inputs return "YYYY-MM-DD". We can compare dates lexicographically since they are zero-padded.
+  const startDateStr = params.startDate ? params.startDate : null;
+  const endDateStr = params.endDate ? params.endDate : null;
 
   const todayDateStr = Utilities.formatDate(
     new Date(),
@@ -124,30 +129,56 @@ function getFilteredLeads(params) {
     const name = row[1] ? String(row[1]).toLowerCase() : "";
     const city = row[2] ? String(row[2]).toLowerCase() : "";
     const phone = row[3] ? String(row[3]).toLowerCase() : "";
+    const statusStr = String(row[6]).trim();
     let enqDate = row[4];
     let contactAgain = row[8];
 
+    // Status filters
+    if (excludeConfirmed && statusStr.toLowerCase() === "confirmed")
+      match = false;
+    if (
+      requireStatus &&
+      statusStr.toLowerCase() !== requireStatus.toLowerCase()
+    )
+      match = false;
+    if (
+      match &&
+      filterStatus &&
+      statusStr.toLowerCase() !== filterStatus.toLowerCase()
+    )
+      match = false;
+
     // Text filters
-    if (sName && !name.includes(sName)) match = false;
-    if (sPhone && !phone.includes(sPhone)) match = false;
-    if (sCity && !city.includes(sCity)) match = false;
+    if (match && sName && !name.includes(sName)) match = false;
+    if (match && sPhone && !phone.includes(sPhone)) match = false;
+    if (match && sCity && !city.includes(sCity)) match = false;
 
-    // Date Range filters
-    if (match && (startDate || endDate)) {
-      let d;
-      if (enqDate instanceof Date) d = enqDate;
-      else if (typeof enqDate === "string" && enqDate) d = new Date(enqDate);
+    // Date Range filters (comparing YYYY-MM-DD strings directly)
+    if (match && (startDateStr || endDateStr)) {
+      let dStr = "";
+      if (enqDate instanceof Date) {
+        dStr = Utilities.formatDate(
+          enqDate,
+          Session.getScriptTimeZone(),
+          "yyyy-MM-dd",
+        );
+      } else if (typeof enqDate === "string" && enqDate) {
+        // If it's a string, attempt to extract YYYY-MM-DD
+        dStr = enqDate.substring(0, 10);
+      }
 
-      if (startDate && d && d < startDate) match = false;
-      if (endDate && d && d > endDate) match = false;
-      if (!d && (startDate || endDate)) match = false; // Exclude if no date but filter applied
+      if (!dStr) {
+        match = false; // Exclude if no date but filter is applied
+      } else {
+        if (startDateStr && dStr < startDateStr) match = false;
+        if (endDateStr && dStr > endDateStr) match = false;
+      }
     }
 
     // Today Only filter logic
     if (match && isTodayOnly) {
       let isToday = false;
 
-      // If Contact Again Date exists, ONLY use that to determine if it's for today.
       if (contactAgain) {
         if (contactAgain instanceof Date) {
           const dStr = Utilities.formatDate(
@@ -163,7 +194,6 @@ function getFilteredLeads(params) {
           isToday = true;
         }
       } else {
-        // Fall back to Enquiry Date only if Contact Again Date is NOT set
         if (enqDate instanceof Date) {
           const dStr = Utilities.formatDate(
             enqDate,
@@ -183,7 +213,7 @@ function getFilteredLeads(params) {
     }
 
     if (match) {
-      let enqDateStr = formatDateToDayMonthYear(row[4]);
+      let enqDateStrFormatted = formatDateToDayMonthYear(row[4]);
       let contactAgainDateStr = "";
       if (row[8]) {
         if (row[8] instanceof Date) {
@@ -213,13 +243,14 @@ function getFilteredLeads(params) {
         name: row[1],
         city: row[2],
         phone: row[3],
-        enquiryDate: enqDateStr,
+        enquiryDate: enqDateStrFormatted,
         source: row[5],
         status: row[6],
         branch: row[7],
         contactAgainDate: contactAgainDateStr,
         conversations: conversations,
         latestConversation: latestConversation,
+        registrationId: row[10] || "",
         rawDateForSort:
           row[4] instanceof Date
             ? row[4].getTime()
@@ -258,8 +289,7 @@ function getFilteredLeads(params) {
 // Fetch single user by row index
 function getUserDetails(rowIndex) {
   const sheet = getSheet();
-  // Get entire row
-  const row = sheet.getRange(rowIndex, 1, 1, 10).getValues()[0];
+  const row = sheet.getRange(rowIndex, 1, 1, 11).getValues()[0]; // Fetch up to 11 cols now
 
   let enqDateStr = formatDateToDayMonthYear(row[4]);
   let contactAgainDateStr = "";
@@ -292,6 +322,7 @@ function getUserDetails(rowIndex) {
     branch: row[7],
     contactAgainDate: contactAgainDateStr,
     conversations: conversations,
+    registrationId: row[10] || "",
   };
 }
 
@@ -302,12 +333,22 @@ function addConversation(
   status,
   branch,
   contactAgainDate,
+  registrationId,
 ) {
   const sheet = getSheet();
 
-  if (status) sheet.getRange(rowIndex, 7).setValue(status);
-  if (branch) sheet.getRange(rowIndex, 8).setValue(branch);
-  if (contactAgainDate) sheet.getRange(rowIndex, 9).setValue(contactAgainDate);
+  if (status) {
+    if (status === "Confirmed" && !registrationId) {
+      throw new Error("Registration ID is required when status is Confirmed.");
+    }
+    sheet.getRange(rowIndex, 7).setValue(status);
+  }
+
+  if (branch !== undefined) sheet.getRange(rowIndex, 8).setValue(branch);
+  if (contactAgainDate !== undefined)
+    sheet.getRange(rowIndex, 9).setValue(contactAgainDate);
+  if (registrationId !== undefined)
+    sheet.getRange(rowIndex, 11).setValue(registrationId);
 
   const convCell = sheet.getRange(rowIndex, 10); // Column J
   let conversations = [];
@@ -337,6 +378,7 @@ function addConversation(
     status: status,
     branch: branch,
     contactAgainDate: contactAgainDate,
+    registrationId: registrationId,
   };
 }
 
@@ -357,19 +399,26 @@ function getDashboardStats(startDateStr, endDateStr) {
 
   rows.forEach((row) => {
     let enqDate = row[4];
-    let d;
-    if (enqDate instanceof Date) d = enqDate;
-    else if (typeof enqDate === "string" && enqDate) d = new Date(enqDate);
+    let dStr = "";
 
-    if (d && d >= start && d <= end) {
-      total++;
-      if (String(row[6]).toLowerCase() === "confirmed") confirmed++;
-
-      let dStr = Utilities.formatDate(
-        d,
+    if (enqDate instanceof Date) {
+      dStr = Utilities.formatDate(
+        enqDate,
         Session.getScriptTimeZone(),
         "yyyy-MM-dd",
       );
+    } else if (typeof enqDate === "string" && enqDate) {
+      dStr = enqDate.substring(0, 10);
+    }
+
+    if (
+      dStr &&
+      (!startDateStr || dStr >= startDateStr) &&
+      (!endDateStr || dStr <= endDateStr)
+    ) {
+      total++;
+      if (String(row[6]).toLowerCase() === "confirmed") confirmed++;
+
       if (!timeline[dStr]) timeline[dStr] = { total: 0, confirmed: 0 };
 
       timeline[dStr].total++;
