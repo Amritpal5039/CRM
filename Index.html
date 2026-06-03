@@ -119,6 +119,24 @@
               <input type="date" id="al-filter-end">
             </div>
             <div class="filter-group">
+              <label>Status</label>
+              <select id="al-filter-status" onchange="toggleRegFilter()">
+                <option value="">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Not Interested">Not Interested</option>
+                <option value="Follow Up">Follow Up</option>
+              </select>
+            </div>
+            <div class="filter-group" id="al-reg-filter-group" style="display: none;">
+              <label>Registration</label>
+              <select id="al-filter-reg">
+                <option value="">All Confirmed</option>
+                <option value="with">With Registration ID</option>
+                <option value="without">Without Registration ID</option>
+              </select>
+            </div>
+            <div class="filter-group">
               <label>Sort By</label>
               <select id="al-filter-sort">
                 <option value="fresh">Fresh First</option>
@@ -142,27 +160,44 @@
           <h1>Add New Data</h1>
           <div class="form-container">
             <form id="add-data-form" onsubmit="handleFormSubmit(event)">
-              <div class="form-group">
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="name" required>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="name">Name</label>
+                  <input type="text" id="name" name="name" required placeholder="Enter customer name">
+                </div>
+                <div class="form-group">
+                  <label for="city">City</label>
+                  <input type="text" id="city" name="city" required placeholder="Enter city">
+                </div>
+                <div class="form-group">
+                  <label for="phone">Phone Number</label>
+                  <input type="tel" id="phone" name="phone" required placeholder="Enter phone number">
+                </div>
+                <div class="form-group">
+                  <label for="enquiryDate">Enquiry Date</label>
+                  <input type="date" id="enquiryDate" name="enquiryDate" required>
+                </div>
+                <div class="form-group full-width">
+                  <label for="source">Source</label>
+                  <select id="source" name="source" required>
+                    <option value="" disabled selected>Select Source</option>
+                    <option value="Walk in">Walk in</option>
+                    <option value="Search">Search</option>
+                    <option value="word of mouth">word of mouth</option>
+                    <option value="Membership Plan">Membership Plan</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Bikram Reference">Bikram Reference</option>
+                    <option value="Staff Reference">Staff Reference</option>
+                    <option value="Shark tank">Shark tank</option>
+                    <option value="social">social</option>
+                    <option value="Medical store reference">Medical store reference</option>
+                    <option value="BNI">BNI</option>
+                  </select>
+                </div>
               </div>
-              <div class="form-group">
-                <label for="city">City:</label>
-                <input type="text" id="city" name="city" required>
+              <div class="form-group mt-20" style="text-align: right;">
+                <button type="submit" class="btn btn-primary" id="submit-btn" style="min-width: 150px;">Save Customer</button>
               </div>
-              <div class="form-group">
-                <label for="phone">Phone Number:</label>
-                <input type="tel" id="phone" name="phone" required>
-              </div>
-              <div class="form-group">
-                <label for="enquiryDate">Enquiry Date:</label>
-                <input type="date" id="enquiryDate" name="enquiryDate" required>
-              </div>
-              <div class="form-group">
-                <label for="source">Source:</label>
-                <input type="text" id="source" name="source" required>
-              </div>
-              <button type="submit" class="btn btn-primary" id="submit-btn">Save Customer</button>
               <div id="add-message" class="message"></div>
             </form>
           </div>

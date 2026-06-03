@@ -100,6 +100,17 @@
   }
 
   // --- All Leads ---
+  function toggleRegFilter() {
+    const statusVal = document.getElementById('al-filter-status').value;
+    const regFilterGroup = document.getElementById('al-reg-filter-group');
+    if (statusVal === 'Confirmed') {
+      regFilterGroup.style.display = 'flex';
+    } else {
+      regFilterGroup.style.display = 'none';
+      document.getElementById('al-filter-reg').value = '';
+    }
+  }
+
   function clearAllLeadsFilters() {
     document.getElementById('al-filter-name').value = '';
     document.getElementById('al-filter-phone').value = '';
@@ -107,6 +118,8 @@
     document.getElementById('al-filter-start').value = '';
     document.getElementById('al-filter-end').value = '';
     document.getElementById('al-filter-sort').value = 'fresh';
+    document.getElementById('al-filter-status').value = '';
+    toggleRegFilter();
     fetchAllLeads(1);
   }
 
@@ -117,6 +130,8 @@
       city: document.getElementById('al-filter-city').value,
       startDate: document.getElementById('al-filter-start').value,
       endDate: document.getElementById('al-filter-end').value,
+      status: document.getElementById('al-filter-status').value,
+      regIdFilter: document.getElementById('al-filter-status').value === 'Confirmed' ? document.getElementById('al-filter-reg').value : null,
       sortOrder: document.getElementById('al-filter-sort').value,
       page: page
     };
@@ -176,6 +191,7 @@
 
     let html = '';
     leads.forEach(lead => {
+      let regIdHtml = lead.registrationId ? `<span><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
       html += `
         <div class="lead-item">
           <div class="lead-info">
@@ -185,6 +201,7 @@
               <span><span class="material-icons">location_on</span> ${lead.city}</span>
               <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
               <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
+              ${regIdHtml}
             </div>
             <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
               <strong>Latest Note:</strong> ${lead.latestConversation}
@@ -262,15 +279,20 @@
       `<option value="${opt}" ${user.status === opt ? 'selected' : ''}>${opt}</option>`
     ).join('');
 
+    const branchOptions = ['', '100 Feet', 'Circular', 'Khalsa'].map(opt =>
+      `<option value="${opt}" ${user.branch === opt ? 'selected' : ''}>${opt || 'Select Branch'}</option>`
+    ).join('');
+
     const html = `
       <div class="ud-meta-grid">
         <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value" id="disp-city">${user.city}</div></div>
         <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone">${user.phone}</div></div>
         <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
         <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
-        <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status">${user.status || 'Pending'}</div></div>
+        <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${user.status || 'Pending'}</div></div>
         <div class="ud-row"><div class="ud-label">Branch:</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
         <div class="ud-row"><div class="ud-label">Contact Again Date:</div><div class="ud-value" id="disp-cad">${user.contactAgainDate || 'None'}</div></div>
+        <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value" id="disp-regid">${user.registrationId || 'None'}</div></div>
       </div>
 
       <div class="ud-section-title">Conversations</div>
@@ -281,25 +303,39 @@
         <div class="update-grid">
           <div class="form-group">
             <label>Update Status</label>
-            <select id="ud-update-status">${statusOptions}</select>
+            <select id="ud-update-status" onchange="toggleDetailRegId()">${statusOptions}</select>
           </div>
           <div class="form-group">
             <label>Update Branch</label>
-            <input type="text" id="ud-update-branch" value="${user.branch || ''}" placeholder="e.g. Downtown">
+            <select id="ud-update-branch">${branchOptions}</select>
           </div>
           <div class="form-group">
             <label>Contact Again Date</label>
             <input type="date" id="ud-update-cad" value="${user.contactAgainDate || ''}">
           </div>
+          <div class="form-group" id="ud-regid-group" style="${user.status === 'Confirmed' ? '' : 'display: none;'}">
+            <label>Registration ID</label>
+            <input type="text" id="ud-update-regid" value="${user.registrationId || ''}" placeholder="Enter Registration ID">
+          </div>
         </div>
         <div class="form-group">
-          <textarea id="ud-new-conv" rows="2" placeholder="Add latest conversation notes..."></textarea>
+          <textarea id="ud-new-conv" rows="2" placeholder="Add latest conversation notes (required if changing status)..."></textarea>
         </div>
-        <button class="btn btn-primary" onclick="saveUserDetailConversation(this)">Add Note & Update</button>
+        <button class="btn btn-primary" onclick="saveUserDetailConversation(this)">Update</button>
       </div>
     `;
     
     document.getElementById('ud-body').innerHTML = html;
+  }
+
+  function toggleDetailRegId() {
+    const status = document.getElementById('ud-update-status').value;
+    const regGroup = document.getElementById('ud-regid-group');
+    if (status === 'Confirmed') {
+      regGroup.style.display = 'block';
+    } else {
+      regGroup.style.display = 'none';
+    }
   }
 
   function saveUserDetailConversation(btn) {
@@ -307,11 +343,16 @@
     
     const textArea = document.getElementById('ud-new-conv');
     const text = textArea.value.trim();
-    if (!text) return alert('Please enter conversation notes');
     
     const status = document.getElementById('ud-update-status').value;
+    const originalStatus = document.getElementById('disp-status').getAttribute('data-original-status');
     const branch = document.getElementById('ud-update-branch').value;
     const cad = document.getElementById('ud-update-cad').value;
+    const regid = document.getElementById('ud-update-regid').value;
+
+    if (status !== originalStatus && !text) {
+      return alert('Please enter conversation notes when changing the status.');
+    }
     
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -319,33 +360,41 @@
     google.script.run
       .withSuccessHandler(function(response) {
         btn.disabled = false;
-        btn.textContent = 'Add Note & Update';
+        btn.textContent = 'Update';
         textArea.value = '';
         
         // Update display text
-        if(response.status) document.getElementById('disp-status').textContent = response.status;
-        if(response.branch) document.getElementById('disp-branch').textContent = response.branch;
-        if(response.contactAgainDate) document.getElementById('disp-cad').textContent = response.contactAgainDate;
+        if(response.status) {
+          document.getElementById('disp-status').textContent = response.status;
+          document.getElementById('disp-status').setAttribute('data-original-status', response.status);
+        }
+        if(response.branch !== undefined) document.getElementById('disp-branch').textContent = response.branch || 'N/A';
+        if(response.contactAgainDate !== undefined) document.getElementById('disp-cad').textContent = response.contactAgainDate || 'None';
+        if(response.registrationId !== undefined) document.getElementById('disp-regid').textContent = response.registrationId || 'None';
 
         // Re-render conversation list inline
         const convListDiv = document.getElementById('ud-conv-list');
         let newHtml = '';
-        response.conversations.forEach((conv, idx) => {
-          let agentStr = conv.agent ? `<span class="conversation-agent">[${conv.agent}]</span>` : '';
-          newHtml += `
-            <div class="conversation-item">
-              <div class="conversation-header">Conversation ${idx + 1} - ${conv.date} ${agentStr}</div>
-              <div class="conversation-text">${conv.text}</div>
-            </div>`;
-        });
+        if (response.conversations && response.conversations.length > 0) {
+          response.conversations.forEach((conv, idx) => {
+            let agentStr = conv.agent ? `<span class="conversation-agent">[${conv.agent}]</span>` : '';
+            newHtml += `
+              <div class="conversation-item">
+                <div class="conversation-header">Conversation ${idx + 1} - ${conv.date} ${agentStr}</div>
+                <div class="conversation-text">${conv.text}</div>
+              </div>`;
+          });
+        } else {
+           newHtml = '<p>No conversations yet.</p>';
+        }
         convListDiv.innerHTML = newHtml;
       })
       .withFailureHandler(function(error) {
         btn.disabled = false;
-        btn.textContent = 'Add Note & Update';
-        alert('Error saving note: ' + error.message);
+        btn.textContent = 'Update';
+        alert('Error saving: ' + error.message);
       })
-      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad);
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus);
   }
 
   // --- Add Data Form ---

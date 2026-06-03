@@ -148,6 +148,13 @@ function getFilteredLeads(params) {
     )
       match = false;
 
+    // Registration ID filter
+    if (match && params.regIdFilter) {
+      const regId = String(row[10] || "").trim();
+      if (params.regIdFilter === "with" && !regId) match = false;
+      if (params.regIdFilter === "without" && regId) match = false;
+    }
+
     // Text filters
     if (match && sName && !name.includes(sName)) match = false;
     if (match && sPhone && !phone.includes(sPhone)) match = false;
@@ -334,13 +341,17 @@ function addConversation(
   branch,
   contactAgainDate,
   registrationId,
+  originalStatus
 ) {
   const sheet = getSheet();
 
-  if (status) {
-    if (status === "Confirmed" && !registrationId) {
-      throw new Error("Registration ID is required when status is Confirmed.");
+  if (status && status !== originalStatus) {
+    if (!text || text.trim() === "") {
+      throw new Error("Conversation notes are required when updating status.");
     }
+  }
+
+  if (status) {
     sheet.getRange(rowIndex, 7).setValue(status);
   }
 
@@ -357,23 +368,25 @@ function addConversation(
     if (val) conversations = JSON.parse(val);
   } catch (e) {}
 
-  const dateStr = Utilities.formatDate(
-    new Date(),
-    Session.getScriptTimeZone(),
-    "yyyy-MM-dd HH:mm:ss",
-  );
+  if (text && text.trim() !== "") {
+    const dateStr = Utilities.formatDate(
+      new Date(),
+      Session.getScriptTimeZone(),
+      "yyyy-MM-dd HH:mm:ss",
+    );
 
-  conversations.push({
-    text: text,
-    date: dateStr,
-    agent: agentName,
-  });
+    conversations.push({
+      text: text.trim(),
+      date: dateStr,
+      agent: agentName,
+    });
 
-  convCell.setValue(JSON.stringify(conversations));
+    convCell.setValue(JSON.stringify(conversations));
+  }
 
   return {
     success: true,
-    message: "Conversation added",
+    message: "Data updated",
     conversations: conversations,
     status: status,
     branch: branch,
