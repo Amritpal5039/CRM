@@ -33,7 +33,7 @@
       <!-- Sidebar -->
       <nav class="sidebar" id="sidebar">
         <div class="logo">
-          <img src="https://drive.google.com/uc?export=view&id=1d__SS0NN98N_uK7ngoogZlbm-Wx_brsF" alt="Logo" style="max-width: 100%; max-height: 50px; margin-bottom: 10px;" onerror="this.style.display='none'">
+          <img src="https://res.cloudinary.com/ddrhe6ojc/image/upload/v1780403525/logo_wkzaml.png" alt="Logo" style="max-width: 100%; max-height: 50px; margin-bottom: 10px;" onerror="this.style.display='none'">
           <h2>Customer Care</h2>
           <div id="logged-in-user" style="font-size: 12px; color: var(--text-light); margin-top: 5px;"></div>
         </div>
@@ -48,7 +48,7 @@
             <span class="material-icons">list_alt</span> <span class="link-text">See All Leads</span>
           </li>
           <li onclick="showSection('add-data-section', this)">
-            <span class="material-icons">add_circle</span> <span class="link-text">Add New Data</span>
+            <span class="material-icons">add_circle</span> <span class="link-text">Add New Lead</span>
           </li>
           <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
             <span class="material-icons">contact_phone</span> <span class="link-text">Today Calls</span>
@@ -59,14 +59,15 @@
         </ul>
       </nav>
 
+      <div class="mobile-header">
+         <button class="mobile-menu-btn" onclick="toggleSidebar()">
+           <span class="material-icons">menu</span>
+         </button>
+         <h2>Customer Care</h2>
+      </div>
+
       <!-- Main Content -->
       <main class="main-content" id="main-content-area">
-        <div class="mobile-header">
-           <button class="mobile-menu-btn" onclick="toggleSidebar()">
-             <span class="material-icons">menu</span>
-           </button>
-           <h2>Customer Care</h2>
-        </div>
         
         <!-- Dashboard Section -->
         <section id="dashboard-section" class="content-section active">
@@ -86,19 +87,19 @@
             </div>
           </div>
 
-          <div class="stats-cards">
-            <div class="stat-card">
-              <h3>Total Enquiries</h3>
-              <div id="stat-total" class="stat-value">0</div>
+          <div class="charts-grid mt-20">
+            <div class="chart-container card">
+              <canvas id="dashboardChart"></canvas>
             </div>
-            <div class="stat-card">
-              <h3>Confirmed Clients</h3>
-              <div id="stat-confirmed" class="stat-value text-success">0</div>
+            <div class="chart-container card">
+              <canvas id="trendChart"></canvas>
             </div>
-          </div>
-
-          <div class="chart-container card mt-20">
-            <canvas id="dashboardChart"></canvas>
+            <div class="chart-container card">
+              <canvas id="sourceChart"></canvas>
+            </div>
+            <div class="chart-container card">
+              <canvas id="leadByChart"></canvas>
+            </div>
           </div>
         </section>
 
@@ -131,10 +132,15 @@
               <label>Status</label>
               <select id="al-filter-status" onchange="toggleRegFilter()">
                 <option value="">All</option>
-                <option value="Pending">Pending</option>
+                <option value="Pending" selected>Pending</option>
                 <option value="Confirmed">Confirmed</option>
                 <option value="Not Interested">Not Interested</option>
                 <option value="Follow Up">Follow Up</option>
+                <option value="Closed">Closed</option>
+                <option value="Call Not Answered">Call Not Answered</option>
+                <option value="General Inquiry">General Inquiry</option>
+                <option value="Call Dropped">Call Dropped</option>
+                <option value="Patient Will Contact">Patient Will Contact</option>
               </select>
             </div>
             <div class="filter-group" id="al-reg-filter-group" style="display: none;">
@@ -166,7 +172,7 @@
 
         <!-- Add Data Section -->
         <section id="add-data-section" class="content-section">
-          <h1>Add New Data</h1>
+          <h1>Add New Lead</h1>
           <div class="form-container">
             <form id="add-data-form" onsubmit="handleFormSubmit(event)">
               <div class="form-grid">
@@ -187,20 +193,32 @@
                   <input type="date" id="enquiryDate" name="enquiryDate" required>
                 </div>
                 <div class="form-group full-width">
+                  <label for="leadBy">Lead By</label>
+                  <select id="leadBy" name="leadBy" required>
+                    <option value="" disabled selected>Select Lead By</option>
+                    <option value="Call">Call</option>
+                    <option value="Text">Text</option>
+                  </select>
+                </div>
+                <div class="form-group full-width">
                   <label for="source">Source</label>
                   <select id="source" name="source" required>
                     <option value="" disabled selected>Select Source</option>
+                    <option value="Call">Call</option>
+                    <option value="Text">Text</option>
                     <option value="Walk in">Walk in</option>
                     <option value="Search">Search</option>
                     <option value="word of mouth">word of mouth</option>
                     <option value="Membership Plan">Membership Plan</option>
                     <option value="Referral">Referral</option>
-                    <option value="Bikram Reference">Bikram Reference</option>
+                    <option value="Dr.Bikram Reference">Dr.Bikram Reference</option>
                     <option value="Staff Reference">Staff Reference</option>
+                    <option value="Medical store reference">Medical store reference</option>
                     <option value="Shark tank">Shark tank</option>
                     <option value="social">social</option>
-                    <option value="Medical store reference">Medical store reference</option>
                     <option value="BNI">BNI</option>
+                    <option value="Existing patient">Existing patient</option>
+                    <option value="Ongoing patient">Ongoing patient</option>
                   </select>
                 </div>
               </div>
@@ -228,6 +246,21 @@
             <div class="filter-group">
               <label>Location</label>
               <input type="text" id="tc-filter-city" placeholder="Search city">
+            </div>
+            <div class="filter-group">
+              <label>Status</label>
+              <select id="tc-filter-status">
+                <option value="">All Today</option>
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Not Interested">Not Interested</option>
+                <option value="Follow Up">Follow Up</option>
+                <option value="Closed">Closed</option>
+                <option value="Call Not Answered">Call Not Answered</option>
+                <option value="General Inquiry">General Inquiry</option>
+                <option value="Call Dropped">Call Dropped</option>
+                <option value="Patient Will Contact">Patient Will Contact</option>
+              </select>
             </div>
             <div class="filter-group">
               <label>Sort By</label>

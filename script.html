@@ -1,6 +1,11 @@
 <script>
   let currentUser = null;
+  let currentUsername = null;
+  let isCurrentUserAdmin = false;
   let dashboardChartInstance = null;
+  let trendChartInstance = null;
+  let sourceChartInstance = null;
+  let leadByChartInstance = null;
   let currentDetailRowIndex = null;
 
   // Login
@@ -19,9 +24,11 @@
       .withSuccessHandler(function(response) {
         if (response.success) {
           currentUser = response.name;
+          currentUsername = user; // store the raw username
+          isCurrentUserAdmin = response.isAdmin;
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('app-container').style.display = 'flex';
-          document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser;
+          document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser + (isCurrentUserAdmin ? ' (Admin)' : '');
           
           // Defaults for dashboard
           const today = new Date();
@@ -48,6 +55,8 @@
 
   function logout() {
     currentUser = null;
+    currentUsername = null;
+    isCurrentUserAdmin = false;
     document.getElementById('login-form').reset();
     document.getElementById('app-container').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
@@ -87,18 +96,32 @@
     
     google.script.run
       .withSuccessHandler(function(stats) {
-        document.getElementById('stat-total').textContent = stats.total;
-        document.getElementById('stat-confirmed').textContent = stats.confirmed;
-        renderChart(stats.timeline);
+        renderChart(stats);
+        renderTrendChart(stats.timeline);
+        renderSourceChart(stats.sources);
+        renderLeadByChart(stats.leadBy);
       })
       .getDashboardStats(start, end);
   }
 
-  function renderChart(timeline) {
+  function renderChart(stats) {
     const ctx = document.getElementById('dashboardChart').getContext('2d');
-    const labels = Object.keys(timeline);
-    const totalData = labels.map(l => timeline[l].total);
-    const confirmedData = labels.map(l => timeline[l].confirmed);
+
+    const labels = ['Total', 'No Reg', 'With Reg', 'Pending', 'Follow Up', 'Not Int', 'Closed', 'No Ans', 'Gen Inq', 'Dropped', 'Pat Will Cont'];
+    const data = [
+      stats.total,
+      stats.confirmedWithoutReg,
+      stats.confirmedWithReg,
+      stats.pending,
+      stats.followUp,
+      stats.notInterested,
+      stats.closed,
+      stats.callNotAnswered,
+      stats.generalInquiry,
+      stats.callDropped,
+      stats.patientWillContact
+    ];
+    const bgColors = ['#006A7F', '#34c759', '#2e7d32', '#fbbc04', '#4285f4', '#ea4335', '#9e9e9e', '#ffb74d', '#00bcd4', '#e53935', '#8e24aa'];
 
     if (dashboardChartInstance) dashboardChartInstance.destroy();
 
@@ -106,12 +129,113 @@
       type: 'bar',
       data: {
         labels: labels,
+        datasets: [{
+          label: 'Leads',
+          data: data,
+          backgroundColor: bgColors
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Lead Status Overview' }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  }
+
+  function renderTrendChart(timeline) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const labels = Object.keys(timeline);
+    const totalData = labels.map(l => timeline[l].total);
+    const confirmedWithRegData = labels.map(l => timeline[l].confirmedWithReg);
+
+    if (trendChartInstance) trendChartInstance.destroy();
+
+    trendChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
         datasets: [
-          { label: 'Total Enquiries', data: totalData, backgroundColor: '#1a73e8' },
-          { label: 'Confirmed', data: confirmedData, backgroundColor: '#34a853' }
+          { label: 'Total Enquiries', data: totalData, borderColor: '#006A7F', backgroundColor: 'rgba(0,106,127,0.1)', fill: true, tension: 0.3 },
+          { label: 'Confirmed (With Reg ID)', data: confirmedWithRegData, borderColor: '#34c759', backgroundColor: 'rgba(52,199,89,0.1)', fill: true, tension: 0.3 }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'Enquiries vs Confirmed (Reg) Trend' }
+        },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      }
+    });
+  }
+
+  function renderSourceChart(sources) {
+    const ctx = document.getElementById('sourceChart').getContext('2d');
+    const labels = Object.keys(sources);
+    const data = labels.map(l => sources[l]);
+
+    const bgColors = [
+      '#006A7F', '#34c759', '#fbbc04', '#ea4335', '#4285f4',
+      '#8e24aa', '#f06292', '#4dd0e1', '#4db6ac', '#aed581',
+      '#ffb74d', '#ba68c8', '#4dd0e1', '#dce775', '#a1887f'
+    ];
+
+    if (sourceChartInstance) sourceChartInstance.destroy();
+
+    sourceChartInstance = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: bgColors.slice(0, labels.length)
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          title: { display: true, text: 'Lead Sources' }
+        }
+      }
+    });
+  }
+
+  function renderLeadByChart(leadByData) {
+    const ctx = document.getElementById('leadByChart').getContext('2d');
+    const labels = Object.keys(leadByData);
+    const data = labels.map(l => leadByData[l]);
+
+    const bgColors = ['#4285f4', '#34a853', '#fbbc04', '#ea4335', '#8e24aa'];
+
+    if (leadByChartInstance) leadByChartInstance.destroy();
+
+    leadByChartInstance = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: bgColors.slice(0, labels.length)
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          title: { display: true, text: 'Leads by Medium' }
+        }
+      }
     });
   }
 
@@ -134,7 +258,7 @@
     document.getElementById('al-filter-start').value = '';
     document.getElementById('al-filter-end').value = '';
     document.getElementById('al-filter-sort').value = 'fresh';
-    document.getElementById('al-filter-status').value = '';
+    document.getElementById('al-filter-status').value = 'Pending';
     toggleRegFilter();
     fetchAllLeads(1);
   }
@@ -179,6 +303,7 @@
       name: document.getElementById('tc-filter-name').value,
       phone: document.getElementById('tc-filter-phone').value,
       city: document.getElementById('tc-filter-city').value,
+      status: document.getElementById('tc-filter-status').value,
       sortOrder: document.getElementById('tc-filter-sort').value,
       isTodayOnly: true,
       page: page
@@ -279,6 +404,15 @@
 
   function renderUserDetail(user) {
     document.getElementById('ud-name').textContent = user.name;
+    document.getElementById('ud-name').setAttribute('data-original-name', user.name);
+
+    // Add input field logic for inline editing of name
+    const headerHtml = `
+      <input type="text" id="ud-edit-name" value="${user.name}" style="font-size: 24px; font-weight: 600; color: var(--primary); border: 1px solid transparent; background: transparent; width: 100%; max-width: 300px; padding: 4px; border-radius: 4px;"
+        onfocus="this.style.border='1px solid var(--border)'; this.style.background='white';"
+        onblur="this.style.border='1px solid transparent'; this.style.background='transparent';">
+    `;
+    document.getElementById('ud-name').innerHTML = headerHtml;
     
     let convHtml = '';
     if (user.conversations && user.conversations.length > 0) {
@@ -296,7 +430,25 @@
       convHtml = `<div class="conversations-list" id="ud-conv-list"><p>No conversations yet.</p></div>`;
     }
 
-    const statusOptions = ['Pending', 'Confirmed', 'Not Interested', 'Follow Up'].map(opt => 
+    let histHtml = '';
+    if (user.editHistory && user.editHistory.length > 0) {
+      histHtml += '<div class="conversations-list" style="background: #fdfdfd; border: 1px dashed var(--border);">';
+      user.editHistory.forEach((hist, idx) => {
+        let agentStr = hist.agent ? `<span class="conversation-agent">[${hist.agent}]</span>` : '';
+        histHtml += `
+          <div class="conversation-item">
+            <div class="conversation-header">Edit on ${hist.date} ${agentStr}</div>
+            <div class="conversation-text" style="font-size: 13px; color: var(--text-light);">${hist.changes}</div>
+          </div>`;
+      });
+      histHtml += '</div>';
+    }
+
+    const statusOptions = [
+      'Pending', 'Confirmed', 'Not Interested', 'Follow Up',
+      'Closed', 'Call Not Answered', 'General Inquiry', 'Call Dropped',
+      'Patient Will Contact'
+    ].map(opt =>
       `<option value="${opt}" ${user.status === opt ? 'selected' : ''}>${opt}</option>`
     ).join('');
 
@@ -306,9 +458,17 @@
 
     const html = `
       <div class="ud-meta-grid">
-        <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value" id="disp-city">${user.city}</div></div>
+        <div class="ud-row">
+          <div class="ud-label">City:</div>
+          <div class="ud-value" id="disp-city" data-original-city="${user.city}">
+            <input type="text" id="ud-edit-city" value="${user.city}" style="font-size: 15px; color: var(--text-dark); border: 1px solid transparent; background: transparent; padding: 2px 4px; width: 100%; border-radius: 4px;"
+            onfocus="this.style.border='1px solid var(--border)'; this.style.background='white';"
+            onblur="this.style.border='1px solid transparent'; this.style.background='transparent';">
+          </div>
+        </div>
         <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone"><a href="tel:${user.phone}" style="color: var(--primary); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 5px;"><span class="material-icons" style="font-size: 16px;">call</span> ${user.phone}</a></div></div>
         <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
+        <div class="ud-row"><div class="ud-label">Lead By:</div><div class="ud-value">${user.leadBy || 'N/A'}</div></div>
         <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
         <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${user.status || 'Pending'}</div></div>
         <div class="ud-row"><div class="ud-label">Branch:</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
@@ -316,7 +476,12 @@
         <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value" id="disp-regid">${user.registrationId || 'None'}</div></div>
       </div>
 
-      <div class="ud-section-title">Conversations</div>
+      ${histHtml ? `<div class="ud-section-title">Edit History</div>${histHtml}` : ''}
+
+      <div class="ud-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Conversations</span>
+        ${isCurrentUserAdmin ? `<button class="btn btn-outline" style="color: #e53935; border-color: #e53935; padding: 6px 12px; font-size: 12px;" onclick="handleDeleteLead(this)">Delete Lead</button>` : ''}
+      </div>
       ${convHtml}
 
       <div class="update-box">
@@ -340,7 +505,7 @@
           </div>
         </div>
         <div class="form-group">
-          <textarea id="ud-new-conv" rows="2" placeholder="Add latest conversation notes (required if changing status)..."></textarea>
+          <textarea id="ud-new-conv" rows="2" placeholder="Add latest conversation notes (optional)..."></textarea>
         </div>
         <button class="btn btn-primary" onclick="saveUserDetailConversation(this)">Update</button>
       </div>
@@ -359,6 +524,28 @@
     }
   }
 
+  function handleDeleteLead(btn) {
+    if (!currentDetailRowIndex || !isCurrentUserAdmin) return;
+
+    if (confirm('Are you sure you want to permanently delete this lead? This action cannot be undone.')) {
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+           closeUserDetail();
+           // Lists automatically refresh when user detail closes, see closeUserDetail logic
+           alert('Lead deleted successfully');
+        })
+        .withFailureHandler(function(error) {
+           btn.disabled = false;
+           btn.textContent = 'Delete Lead';
+           alert('Error deleting lead: ' + error.message);
+        })
+        .deleteLead(currentDetailRowIndex, currentUsername);
+    }
+  }
+
   function saveUserDetailConversation(btn) {
     if (!currentDetailRowIndex) return;
     
@@ -371,10 +558,15 @@
     const cad = document.getElementById('ud-update-cad').value;
     const regid = document.getElementById('ud-update-regid').value;
 
-    if (status !== originalStatus && !text) {
-      return alert('Please enter conversation notes when changing the status.');
-    }
+    // Name and City edits
+    const nameInput = document.getElementById('ud-edit-name');
+    const name = nameInput ? nameInput.value.trim() : null;
+    const originalName = document.getElementById('ud-name').getAttribute('data-original-name');
     
+    const cityInput = document.getElementById('ud-edit-city');
+    const city = cityInput ? cityInput.value.trim() : null;
+    const originalCity = document.getElementById('disp-city').getAttribute('data-original-city');
+
     btn.disabled = true;
     btn.textContent = 'Saving...';
     
@@ -392,30 +584,23 @@
         if(response.branch !== undefined) document.getElementById('disp-branch').textContent = response.branch || 'N/A';
         if(response.contactAgainDate !== undefined) document.getElementById('disp-cad').textContent = response.contactAgainDate || 'None';
         if(response.registrationId !== undefined) document.getElementById('disp-regid').textContent = response.registrationId || 'None';
-
-        // Re-render conversation list inline
-        const convListDiv = document.getElementById('ud-conv-list');
-        let newHtml = '';
-        if (response.conversations && response.conversations.length > 0) {
-          response.conversations.forEach((conv, idx) => {
-            let agentStr = conv.agent ? `<span class="conversation-agent">[${conv.agent}]</span>` : '';
-            newHtml += `
-              <div class="conversation-item">
-                <div class="conversation-header">Conversation ${idx + 1} - ${conv.date} ${agentStr}</div>
-                <div class="conversation-text">${conv.text}</div>
-              </div>`;
-          });
-        } else {
-           newHtml = '<p>No conversations yet.</p>';
+        if(response.name) {
+            document.getElementById('ud-name').setAttribute('data-original-name', response.name);
         }
-        convListDiv.innerHTML = newHtml;
+        if(response.city) {
+            document.getElementById('disp-city').setAttribute('data-original-city', response.city);
+        }
+
+        // Close and re-open to refresh the whole view (including edit history)
+        // to keep it simple and ensure all DOM state (like input fields vs text) are accurately rebuilt.
+        openUserDetail(currentDetailRowIndex);
       })
       .withFailureHandler(function(error) {
         btn.disabled = false;
         btn.textContent = 'Update';
         alert('Error saving: ' + error.message);
       })
-      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus);
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity);
   }
 
   // --- Add Data Form ---

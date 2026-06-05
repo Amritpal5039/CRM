@@ -29,6 +29,8 @@ function getSheet() {
       "Contact Again Date",
       "Conversations",
       "Registration ID",
+      "Lead By",
+      "Edit History",
     ]);
   }
   return sheet;
@@ -46,10 +48,29 @@ function login(username, password) {
   const data = idSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] == username && data[i][1] == password) {
-      return { success: true, name: data[i][2] || username };
+      // Check if user is the admin. In a real app, you might have an 'IsAdmin' column.
+      // Here we assume username 'admin' is the administrator.
+      const isAdmin = (username === 'admin');
+      return { success: true, name: data[i][2] || username, isAdmin: isAdmin };
     }
   }
   return { success: false, message: "Invalid credentials" };
+}
+
+// Admin only function to delete a lead
+function deleteLead(rowIndex, username) {
+  if (username !== 'admin') {
+    throw new Error("Unauthorized: Only admins can delete leads.");
+  }
+
+  const sheet = getSheet();
+  // Ensure we don't delete headers
+  if (rowIndex <= 1) {
+    throw new Error("Cannot delete header row.");
+  }
+
+  sheet.deleteRow(rowIndex);
+  return { success: true, message: "Lead deleted successfully." };
 }
 
 // Add new customer data
@@ -69,6 +90,8 @@ function addCustomer(data) {
     "", // Contact Again Date
     "[]", // empty conversations JSON
     "", // Registration ID
+    data.leadBy || "", // Lead By
+    "[]", // Edit History
   ]);
   return { success: true, message: "Customer added successfully" };
 }
@@ -217,7 +240,14 @@ function getFilteredLeads(params) {
         }
       }
 
-      if (!isToday) match = false;
+      if (!isToday) {
+        match = false;
+      } else {
+        // Exclude confirmed leads that have a registration ID from today's calls
+        if (statusStr.toLowerCase() === "confirmed" && String(row[10] || "").trim() !== "") {
+          match = false;
+        }
+      }
     }
 
     if (match) {
@@ -259,6 +289,7 @@ function getFilteredLeads(params) {
         conversations: conversations,
         latestConversation: latestConversation,
         registrationId: row[10] || "",
+    leadBy: row[11] || "",
         rawDateForSort:
           row[4] instanceof Date
             ? row[4].getTime()
@@ -297,7 +328,7 @@ function getFilteredLeads(params) {
 // Fetch single user by row index
 function getUserDetails(rowIndex) {
   const sheet = getSheet();
-  const row = sheet.getRange(rowIndex, 1, 1, 11).getValues()[0]; // Fetch up to 11 cols now
+  const row = sheet.getRange(rowIndex, 1, 1, 13).getValues()[0]; // Fetch up to 13 cols now
 
   let enqDateStr = formatDateToDayMonthYear(row[4]);
   let contactAgainDateStr = "";
@@ -318,6 +349,11 @@ function getUserDetails(rowIndex) {
     conversations = JSON.parse(row[9]) || [];
   } catch (e) {}
 
+  let editHistory = [];
+  try {
+    editHistory = JSON.parse(row[12]) || [];
+  } catch(e) {}
+
   return {
     rowIndex: rowIndex,
     id: row[0],
@@ -331,6 +367,8 @@ function getUserDetails(rowIndex) {
     contactAgainDate: contactAgainDateStr,
     conversations: conversations,
     registrationId: row[10] || "",
+    leadBy: row[11] || "",
+    editHistory: editHistory
   };
 }
 
@@ -342,25 +380,26 @@ function addConversation(
   branch,
   contactAgainDate,
   registrationId,
-  originalStatus
+  originalStatus,
+  name,
+  city,
+  originalName,
+  originalCity
 ) {
   const sheet = getSheet();
 
-  if (status && status !== originalStatus) {
-    if (!text || text.trim() === "") {
-      throw new Error("Conversation notes are required when updating status.");
-    }
-  }
-
-  if (status) {
-    sheet.getRange(rowIndex, 7).setValue(status);
-  }
-
+  if (status) sheet.getRange(rowIndex, 7).setValue(status);
   if (branch !== undefined) sheet.getRange(rowIndex, 8).setValue(branch);
-  if (contactAgainDate !== undefined)
-    sheet.getRange(rowIndex, 9).setValue(contactAgainDate);
-  if (registrationId !== undefined)
-    sheet.getRange(rowIndex, 11).setValue(registrationId);
+  if (contactAgainDate !== undefined) sheet.getRange(rowIndex, 9).setValue(contactAgainDate);
+  if (registrationId !== undefined) sheet.getRange(rowIndex, 11).setValue(registrationId);
+  if (name !== undefined) sheet.getRange(rowIndex, 2).setValue(name);
+  if (city !== undefined) sheet.getRange(rowIndex, 3).setValue(city);
+
+  const dateStr = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    "yyyy-MM-dd HH:mm:ss",
+  );
 
   const convCell = sheet.getRange(rowIndex, 10); // Column J
   let conversations = [];
@@ -370,36 +409,57 @@ function addConversation(
   } catch (e) {}
 
   if (text && text.trim() !== "") {
-    const dateStr = Utilities.formatDate(
-      new Date(),
-      Session.getScriptTimeZone(),
-      "yyyy-MM-dd HH:mm:ss",
-    );
-
     conversations.push({
       text: text.trim(),
       date: dateStr,
       agent: agentName,
     });
-
     convCell.setValue(JSON.stringify(conversations));
+  }
+
+  // Handle Edit History
+  const historyCell = sheet.getRange(rowIndex, 13); // Column M
+  let editHistory = [];
+  try {
+    const hVal = historyCell.getValue();
+    if (hVal) editHistory = JSON.parse(hVal);
+  } catch (e) {}
+
+  let edited = false;
+  let editNotes = [];
+  if (name && name !== originalName) { editNotes.push(`Name changed from "${originalName}" to "${name}"`); edited = true; }
+  if (city && city !== originalCity) { editNotes.push(`City changed from "${originalCity}" to "${city}"`); edited = true; }
+
+  if (edited) {
+    editHistory.push({
+      date: dateStr,
+      agent: agentName,
+      changes: editNotes.join(", ")
+    });
+    historyCell.setValue(JSON.stringify(editHistory));
   }
 
   return {
     success: true,
     message: "Data updated",
     conversations: conversations,
+    editHistory: editHistory,
     status: status,
     branch: branch,
     contactAgainDate: contactAgainDate,
     registrationId: registrationId,
+    name: name,
+    city: city
   };
 }
 
 function getDashboardStats(startDateStr, endDateStr) {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return { total: 0, confirmed: 0, timeline: {} };
+  if (data.length <= 1) return {
+    total: 0, confirmed: 0, confirmedWithReg: 0, confirmedWithoutReg: 0,
+    pending: 0, followUp: 0, notInterested: 0, timeline: {}, sources: {}
+  };
 
   const rows = data.slice(1);
   let start = startDateStr ? new Date(startDateStr) : new Date(0);
@@ -407,9 +467,22 @@ function getDashboardStats(startDateStr, endDateStr) {
 
   end.setHours(23, 59, 59, 999);
 
-  let total = 0;
-  let confirmed = 0;
-  let timeline = {};
+  let stats = {
+    total: 0,
+    confirmedWithReg: 0,
+    confirmedWithoutReg: 0,
+    pending: 0,
+    followUp: 0,
+    notInterested: 0,
+    closed: 0,
+    callNotAnswered: 0,
+    generalInquiry: 0,
+    callDropped: 0,
+    patientWillContact: 0,
+    timeline: {},
+    sources: {},
+    leadBy: {}
+  };
 
   rows.forEach((row) => {
     let enqDate = row[4];
@@ -430,23 +503,61 @@ function getDashboardStats(startDateStr, endDateStr) {
       (!startDateStr || dStr >= startDateStr) &&
       (!endDateStr || dStr <= endDateStr)
     ) {
-      total++;
-      if (String(row[6]).toLowerCase() === "confirmed") confirmed++;
+      stats.total++;
 
-      if (!timeline[dStr]) timeline[dStr] = { total: 0, confirmed: 0 };
+      const statusStr = String(row[6] || "Pending").trim().toLowerCase();
+      const regId = String(row[10] || "").trim();
+      const sourceStr = String(row[5] || "Unknown").trim();
+      const leadByStr = String(row[11] || "Unknown").trim();
 
-      timeline[dStr].total++;
-      if (String(row[6]).toLowerCase() === "confirmed")
-        timeline[dStr].confirmed++;
+      // Status breakdown
+      if (statusStr === "confirmed") {
+        if (regId !== "") stats.confirmedWithReg++;
+        else stats.confirmedWithoutReg++;
+      } else if (statusStr === "pending") {
+        stats.pending++;
+      } else if (statusStr === "follow up") {
+        stats.followUp++;
+      } else if (statusStr === "not interested") {
+        stats.notInterested++;
+      } else if (statusStr === "closed") {
+        stats.closed++;
+      } else if (statusStr === "call not answered") {
+        stats.callNotAnswered++;
+      } else if (statusStr === "general inquiry") {
+        stats.generalInquiry++;
+      } else if (statusStr === "call dropped") {
+        stats.callDropped++;
+      } else if (statusStr === "patient will contact") {
+        stats.patientWillContact++;
+      }
+
+      // Source breakdown
+      if (!stats.sources[sourceStr]) stats.sources[sourceStr] = 0;
+      stats.sources[sourceStr]++;
+
+      // Lead By breakdown
+      if (!stats.leadBy[leadByStr]) stats.leadBy[leadByStr] = 0;
+      stats.leadBy[leadByStr]++;
+
+      // Timeline breakdown
+      if (!stats.timeline[dStr]) stats.timeline[dStr] = { total: 0, confirmedWithReg: 0 };
+      stats.timeline[dStr].total++;
+      if (statusStr === "confirmed" && regId !== "") {
+        stats.timeline[dStr].confirmedWithReg++;
+      }
     }
   });
 
   const sortedTimeline = {};
-  Object.keys(timeline)
+  Object.keys(stats.timeline)
     .sort()
     .forEach((k) => {
-      sortedTimeline[k] = timeline[k];
+      sortedTimeline[k] = stats.timeline[k];
     });
 
-  return { total: total, confirmed: confirmed, timeline: sortedTimeline };
+  stats.timeline = sortedTimeline;
+  stats.confirmed = stats.confirmedWithReg + stats.confirmedWithoutReg;
+
+  return stats;
 }
