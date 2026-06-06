@@ -96,6 +96,10 @@
     
     google.script.run
       .withSuccessHandler(function(stats) {
+        document.getElementById('stat-conv-overall').textContent = stats.overallConversionRate + '%';
+        document.getElementById('stat-conv-new').textContent = stats.newClientConversionRate + '%';
+        document.getElementById('stat-conv-returning').textContent = stats.returningReengagementRate + '%';
+
         renderChart(stats);
         renderTrendChart(stats.timeline);
         renderSourceChart(stats.sources);
@@ -107,11 +111,12 @@
   function renderChart(stats) {
     const ctx = document.getElementById('dashboardChart').getContext('2d');
 
-    const labels = ['Total', 'No Reg', 'With Reg', 'Pending', 'Follow Up', 'Not Int', 'Closed', 'No Ans', 'Gen Inq', 'Dropped', 'Pat Will Cont'];
+    const labels = [
+      'Total', 'Pending', 'Follow Up', 'Not Int', 'Closed', 'No Ans', 'Gen Inq', 'Dropped', 'Pat Will Cont',
+      'Conf (New-Reg)', 'Conf (Ret-Reach)', 'Conf (Ret-NoReach)', 'Conf (Ret-Closed)', 'Conf (No Reg)'
+    ];
     const data = [
       stats.total,
-      stats.confirmedWithoutReg,
-      stats.confirmedWithReg,
       stats.pending,
       stats.followUp,
       stats.notInterested,
@@ -119,9 +124,17 @@
       stats.callNotAnswered,
       stats.generalInquiry,
       stats.callDropped,
-      stats.patientWillContact
+      stats.patientWillContact,
+      stats.confirmedWithReg,
+      stats.confirmedReached,
+      stats.confirmedNotReached,
+      stats.confirmedClosed,
+      stats.confirmedWithoutReg
     ];
-    const bgColors = ['#006A7F', '#34c759', '#2e7d32', '#fbbc04', '#4285f4', '#ea4335', '#9e9e9e', '#ffb74d', '#00bcd4', '#e53935', '#8e24aa'];
+    const bgColors = [
+      '#006A7F', '#fbbc04', '#4285f4', '#ea4335', '#9e9e9e', '#ffb74d', '#00bcd4', '#e53935', '#8e24aa',
+      '#2e7d32', '#34c759', '#7cb342', '#aed581', '#cfd8dc'
+    ];
 
     if (dashboardChartInstance) dashboardChartInstance.destroy();
 
@@ -237,6 +250,142 @@
         }
       }
     });
+  }
+
+  // --- Clients Database ---
+  function clearClientsFilters() {
+    document.getElementById('cd-filter-name').value = '';
+    document.getElementById('cd-filter-phone').value = '';
+    fetchAllClients();
+  }
+
+  function fetchAllClients() {
+    const params = {
+      name: document.getElementById('cd-filter-name').value,
+      phone: document.getElementById('cd-filter-phone').value
+    };
+
+    document.getElementById('cd-loading').style.display = 'block';
+    document.getElementById('cd-list').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        document.getElementById('cd-loading').style.display = 'none';
+        renderClientsList('cd-list', response.clients);
+      })
+      .getFilteredClients(params);
+  }
+
+  function renderClientsList(containerId, clients) {
+    const container = document.getElementById(containerId);
+    if (clients.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light)">No clients found.</p>';
+      return;
+    }
+
+    let html = '';
+    clients.forEach(client => {
+      let regIdHtml = client.regId ? `<span><span class="material-icons">badge</span> ${client.regId}</span>` : '';
+      html += `
+        <div class="lead-item">
+          <div class="lead-info">
+            <span class="lead-name" onclick="openClientDetail('${client.clientId}')">${client.name}</span>
+            <div class="lead-meta">
+              <span><span class="material-icons">phone</span> <a href="tel:${client.phone}" style="color: inherit; text-decoration: none;">${client.phone}</a></span>
+              <span><span class="material-icons">location_on</span> ${client.city}</span>
+              ${regIdHtml}
+            </div>
+            <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
+              <strong>Total Leads Generated:</strong> ${client.leadCount}
+            </div>
+          </div>
+          <div class="lead-actions" style="margin-left: 15px;">
+            <a href="tel:${client.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 50%;">
+              <span class="material-icons" style="font-size: 20px; margin: 0;">call</span>
+            </a>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  // --- Client Detail View ---
+  function openClientDetail(clientId) {
+    document.getElementById('client-detail-overlay').style.display = 'flex';
+    document.getElementById('cd-body').innerHTML = '<div class="loading">Loading client details...</div>';
+    document.getElementById('cd-name').textContent = 'Loading...';
+
+    google.script.run
+      .withSuccessHandler(renderClientDetail)
+      .getClientDetailsWithLeads(clientId);
+  }
+
+  function closeClientDetail() {
+    document.getElementById('client-detail-overlay').style.display = 'none';
+  }
+
+  function renderClientDetail(data) {
+    document.getElementById('cd-name').textContent = data.name;
+
+    let histHtml = '';
+    if (data.editHistory && data.editHistory.length > 0) {
+      histHtml += '<div class="conversations-list" style="background: #fdfdfd; border: 1px dashed var(--border);">';
+      data.editHistory.forEach((hist) => {
+        let agentStr = hist.agent ? `<span class="conversation-agent">[${hist.agent}]</span>` : '';
+        histHtml += `
+          <div class="conversation-item">
+            <div class="conversation-header">Edit on ${hist.date} ${agentStr}</div>
+            <div class="conversation-text" style="font-size: 13px; color: var(--text-light);">${hist.changes}</div>
+          </div>`;
+      });
+      histHtml += '</div>';
+    }
+
+    let leadsHtml = '';
+    if (data.leads && data.leads.length > 0) {
+      data.leads.forEach((lead, idx) => {
+        leadsHtml += `
+          <div class="lead-item" style="cursor: pointer; margin-bottom: 10px;" onclick="openUserDetail(${lead.rowIndex})">
+            <div class="lead-info">
+              <span class="lead-name" style="font-size: 16px;">Lead ${data.leads.length - idx} <span style="font-size: 12px; color: var(--text-light); font-weight: normal;">(${lead.clientType})</span></span>
+              <div class="lead-meta" style="margin-top: 5px;">
+                <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
+                <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
+                <span><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
+              </div>
+              <div style="margin-top: 8px; font-size: 13px; color: var(--text-light);">
+                <strong>Latest Note:</strong> ${lead.latestConversation}
+              </div>
+            </div>
+            <div class="lead-actions">
+               <span class="material-icons" style="color: var(--primary);">chevron_right</span>
+            </div>
+          </div>
+        `;
+      });
+    } else {
+      leadsHtml = '<p style="color: var(--text-light);">No leads generated yet.</p>';
+    }
+
+    const html = `
+      <div class="ud-meta-grid">
+        <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value">${data.city}</div></div>
+        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value"><a href="tel:${data.phone}" style="color: var(--primary); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 5px;"><span class="material-icons" style="font-size: 16px;">call</span> ${data.phone}</a></div></div>
+        <div class="ud-row"><div class="ud-label">First Enquiry:</div><div class="ud-value">${data.enquiryDate}</div></div>
+        <div class="ud-row"><div class="ud-label">Orig. Source:</div><div class="ud-value">${data.source}</div></div>
+        <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value">${data.registrationId || 'None'}</div></div>
+      </div>
+
+      ${histHtml ? `<div class="ud-section-title">Edit History</div>${histHtml}` : ''}
+
+      <div class="ud-section-title" style="margin-top: 20px;">Generated Leads</div>
+      <div class="list-container">
+        ${leadsHtml}
+      </div>
+    `;
+
+    document.getElementById('cd-body').innerHTML = html;
   }
 
   // --- All Leads ---
@@ -405,6 +554,7 @@
   function renderUserDetail(user) {
     document.getElementById('ud-name').textContent = user.name;
     document.getElementById('ud-name').setAttribute('data-original-name', user.name);
+    document.getElementById('ud-name').setAttribute('data-client-row', user.clientRowIndex);
 
     // Add input field logic for inline editing of name
     const headerHtml = `
@@ -456,6 +606,10 @@
       `<option value="${opt}" ${user.branch === opt ? 'selected' : ''}>${opt || 'Select Branch'}</option>`
     ).join('');
 
+    const arrivalOptions = ['', 'Reached', 'Not Reached', 'Closed'].map(opt =>
+      `<option value="${opt}" ${user.arrivalStatus === opt ? 'selected' : ''}>${opt || 'Select Arrival'}</option>`
+    ).join('');
+
     const html = `
       <div class="ud-meta-grid">
         <div class="ud-row">
@@ -469,11 +623,13 @@
         <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone"><a href="tel:${user.phone}" style="color: var(--primary); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 5px;"><span class="material-icons" style="font-size: 16px;">call</span> ${user.phone}</a></div></div>
         <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
         <div class="ud-row"><div class="ud-label">Lead By:</div><div class="ud-value">${user.leadBy || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Client Type:</div><div class="ud-value">${user.clientType || 'New'}</div></div>
         <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
         <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${user.status || 'Pending'}</div></div>
         <div class="ud-row"><div class="ud-label">Branch:</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
         <div class="ud-row"><div class="ud-label">Contact Again Date:</div><div class="ud-value" id="disp-cad">${user.contactAgainDate || 'None'}</div></div>
         <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value" id="disp-regid">${user.registrationId || 'None'}</div></div>
+        ${user.arrivalStatus ? `<div class="ud-row"><div class="ud-label">Arrival Status:</div><div class="ud-value">${user.arrivalStatus}</div></div>` : ''}
       </div>
 
       ${histHtml ? `<div class="ud-section-title">Edit History</div>${histHtml}` : ''}
@@ -489,7 +645,7 @@
         <div class="update-grid">
           <div class="form-group">
             <label>Update Status</label>
-            <select id="ud-update-status" onchange="toggleDetailRegId()">${statusOptions}</select>
+            <select id="ud-update-status" onchange="toggleDetailRegId('${user.clientType}')">${statusOptions}</select>
           </div>
           <div class="form-group">
             <label>Update Branch</label>
@@ -499,9 +655,13 @@
             <label>Contact Again Date</label>
             <input type="date" id="ud-update-cad" value="${user.contactAgainDate || ''}">
           </div>
-          <div class="form-group" id="ud-regid-group" style="${user.status === 'Confirmed' ? '' : 'display: none;'}">
+          <div class="form-group" id="ud-regid-group" style="display: none;">
             <label>Registration ID</label>
             <input type="text" id="ud-update-regid" value="${user.registrationId || ''}" placeholder="Enter Registration ID">
+          </div>
+          <div class="form-group" id="ud-arrival-group" style="display: none;">
+            <label>Arrival Status</label>
+            <select id="ud-update-arrival">${arrivalOptions}</select>
           </div>
         </div>
         <div class="form-group">
@@ -512,15 +672,25 @@
     `;
     
     document.getElementById('ud-body').innerHTML = html;
+    toggleDetailRegId(user.clientType); // Call once to initialize correctly
   }
 
-  function toggleDetailRegId() {
+  function toggleDetailRegId(clientType) {
     const status = document.getElementById('ud-update-status').value;
     const regGroup = document.getElementById('ud-regid-group');
+    const arrGroup = document.getElementById('ud-arrival-group');
+
     if (status === 'Confirmed') {
-      regGroup.style.display = 'block';
+      if (clientType === 'Returning') {
+        regGroup.style.display = 'none';
+        arrGroup.style.display = 'block';
+      } else {
+        regGroup.style.display = 'block';
+        arrGroup.style.display = 'none';
+      }
     } else {
       regGroup.style.display = 'none';
+      arrGroup.style.display = 'none';
     }
   }
 
@@ -556,13 +726,19 @@
     const originalStatus = document.getElementById('disp-status').getAttribute('data-original-status');
     const branch = document.getElementById('ud-update-branch').value;
     const cad = document.getElementById('ud-update-cad').value;
-    const regid = document.getElementById('ud-update-regid').value;
+
+    // Safely retrieve elements that might be conditionally hidden
+    const regidEl = document.getElementById('ud-update-regid');
+    const regid = regidEl ? regidEl.value : '';
+
+    const arrivalEl = document.getElementById('ud-update-arrival');
+    const arrivalStatus = arrivalEl ? arrivalEl.value : '';
 
     // Name and City edits
     const nameInput = document.getElementById('ud-edit-name');
     const name = nameInput ? nameInput.value.trim() : null;
     const originalName = document.getElementById('ud-name').getAttribute('data-original-name');
-    
+
     const cityInput = document.getElementById('ud-edit-city');
     const city = cityInput ? cityInput.value.trim() : null;
     const originalCity = document.getElementById('disp-city').getAttribute('data-original-city');
@@ -593,17 +769,117 @@
 
         // Close and re-open to refresh the whole view (including edit history)
         // to keep it simple and ensure all DOM state (like input fields vs text) are accurately rebuilt.
-        openUserDetail(currentDetailRowIndex);
+        const cRow = currentDetailRowIndex;
+        closeUserDetail();
+        setTimeout(() => openUserDetail(cRow), 100);
       })
       .withFailureHandler(function(error) {
         btn.disabled = false;
         btn.textContent = 'Update';
         alert('Error saving: ' + error.message);
       })
-      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity);
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity, document.getElementById('ud-name').getAttribute('data-client-row'), arrivalStatus);
   }
 
-  // --- Add Data Form ---
+  // --- Add Lead Flow (New vs Existing) ---
+  function resetAddDataFlow() {
+    document.getElementById('phone-check-container').style.display = 'block';
+    document.getElementById('existing-client-container').style.display = 'none';
+    document.getElementById('new-client-container').style.display = 'none';
+
+    document.getElementById('check-phone').value = '';
+    document.getElementById('verify-message').style.display = 'none';
+
+    document.getElementById('add-lead-existing-form').reset();
+    document.getElementById('existing-message').style.display = 'none';
+
+    document.getElementById('add-data-form').reset();
+    document.getElementById('add-message').style.display = 'none';
+  }
+
+  function verifyClientPhone() {
+    const phone = document.getElementById('check-phone').value.trim();
+    if (!phone) return alert('Please enter a phone number to check.');
+
+    const btn = document.getElementById('verify-phone-btn');
+    const msg = document.getElementById('verify-message');
+
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+    msg.style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        btn.disabled = false;
+        btn.textContent = 'Check Client';
+
+        document.getElementById('phone-check-container').style.display = 'none';
+
+        if (response.exists) {
+          const c = response.client;
+          document.getElementById('existing-client-container').style.display = 'block';
+          document.getElementById('existing-clientId').value = c.clientId;
+          document.getElementById('existing-client-details').innerHTML = `
+            <strong>Name:</strong> ${c.name} <br>
+            <strong>City:</strong> ${c.city} <br>
+            <strong>Phone:</strong> ${c.phone} <br>
+            <strong>First Enq Date:</strong> ${c.enqDate}
+          `;
+
+          // Pre-fill today's date for convenience
+          document.getElementById('ex-enquiryDate').valueAsDate = new Date();
+
+        } else {
+          document.getElementById('new-client-container').style.display = 'block';
+          document.getElementById('phone').value = phone; // Pre-fill phone
+          document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
+        }
+      })
+      .withFailureHandler(function(error) {
+        btn.disabled = false;
+        btn.textContent = 'Check Client';
+        msg.className = 'message error';
+        msg.textContent = 'Error: ' + error.message;
+        msg.style.display = 'block';
+      })
+      .checkPhoneExists(phone);
+  }
+
+  function handleAddLeadExisting(event) {
+    event.preventDefault();
+    const btn = document.getElementById('submit-existing-btn');
+    const msgDiv = document.getElementById('existing-message');
+
+    const clientId = document.getElementById('existing-clientId').value;
+    const data = {
+      enquiryDate: document.getElementById('ex-enquiryDate').value,
+      leadBy: document.getElementById('ex-leadBy').value,
+      source: document.getElementById('ex-source').value
+    };
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    msgDiv.style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        msgDiv.className = 'message success';
+        msgDiv.textContent = response.message;
+        msgDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create Lead for Client';
+        setTimeout(() => resetAddDataFlow(), 2000);
+      })
+      .withFailureHandler(function(error) {
+        msgDiv.className = 'message error';
+        msgDiv.textContent = 'Error: ' + error.message;
+        msgDiv.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create Lead for Client';
+      })
+      .addLeadForExistingClient(clientId, data);
+  }
+
   function handleFormSubmit(event) {
     event.preventDefault();
     const btn = document.getElementById('submit-btn');
@@ -613,6 +889,7 @@
     btn.textContent = 'Saving...';
     msgDiv.className = 'message';
     msgDiv.textContent = '';
+    msgDiv.style.display = 'none';
 
     const form = document.getElementById('add-data-form');
     const formData = new FormData(form);
@@ -620,18 +897,27 @@
 
     google.script.run
       .withSuccessHandler(function(response) {
-        msgDiv.className = 'message success';
-        msgDiv.textContent = response.message;
-        form.reset();
-        btn.disabled = false;
-        btn.textContent = 'Save Customer';
-        setTimeout(() => { msgDiv.style.display = 'none'; }, 3000);
+        if(response.success) {
+          msgDiv.className = 'message success';
+          msgDiv.textContent = response.message;
+          msgDiv.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Save Client';
+          setTimeout(() => resetAddDataFlow(), 2000);
+        } else {
+          msgDiv.className = 'message error';
+          msgDiv.textContent = response.message;
+          msgDiv.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Save Client';
+        }
       })
       .withFailureHandler(function(error) {
         msgDiv.className = 'message error';
         msgDiv.textContent = 'Error: ' + error.message;
+        msgDiv.style.display = 'block';
         btn.disabled = false;
-        btn.textContent = 'Save Customer';
+        btn.textContent = 'Save Client';
       })
       .addCustomer(data);
   }

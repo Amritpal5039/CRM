@@ -47,6 +47,9 @@
           <li onclick="showSection('all-leads-section', this); fetchAllLeads(1);">
             <span class="material-icons">list_alt</span> <span class="link-text">See All Leads</span>
           </li>
+          <li onclick="showSection('clients-section', this); fetchAllClients(1);">
+            <span class="material-icons">people</span> <span class="link-text">Clients Database</span>
+          </li>
           <li onclick="showSection('add-data-section', this)">
             <span class="material-icons">add_circle</span> <span class="link-text">Add New Lead</span>
           </li>
@@ -84,6 +87,21 @@
             </div>
             <div class="filter-group" style="align-items: flex-end;">
               <button class="btn btn-primary" onclick="fetchDashboardStats()">Filter</button>
+            </div>
+          </div>
+
+          <div class="stats-cards">
+            <div class="stat-card">
+              <h3>Overall Conversion</h3>
+              <div id="stat-conv-overall" class="stat-value text-success">0%</div>
+            </div>
+            <div class="stat-card">
+              <h3>New Client Conversion</h3>
+              <div id="stat-conv-new" class="stat-value" style="color: #4285f4;">0%</div>
+            </div>
+            <div class="stat-card">
+              <h3>Returning Re-engagement</h3>
+              <div id="stat-conv-returning" class="stat-value" style="color: #fbbc04;">0%</div>
             </div>
           </div>
 
@@ -173,8 +191,69 @@
         <!-- Add Data Section -->
         <section id="add-data-section" class="content-section">
           <h1>Add New Lead</h1>
-          <div class="form-container">
-            <form id="add-data-form" onsubmit="handleFormSubmit(event)">
+
+          <div class="form-container" id="phone-check-container">
+            <p style="margin-bottom: 15px; color: var(--text-light);">Enter the client's phone number to check if they already exist.</p>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" id="check-phone" placeholder="Enter phone number">
+            </div>
+            <button class="btn btn-primary" onclick="verifyClientPhone()" id="verify-phone-btn">Check Client</button>
+            <div id="verify-message" class="message"></div>
+          </div>
+
+          <div class="form-container" id="existing-client-container" style="display: none; margin-top: 20px; border-left: 4px solid var(--primary);">
+            <h3>Existing Client Found</h3>
+            <p id="existing-client-details" style="margin: 15px 0; color: var(--text-light); line-height: 1.6;"></p>
+
+            <form id="add-lead-existing-form" onsubmit="handleAddLeadExisting(event)">
+              <input type="hidden" id="existing-clientId">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Enquiry Date</label>
+                  <input type="date" id="ex-enquiryDate" required>
+                </div>
+                <div class="form-group">
+                  <label>Lead By</label>
+                  <select id="ex-leadBy" required>
+                    <option value="" disabled selected>Select Lead By</option>
+                    <option value="Call">Call</option>
+                    <option value="Text">Text</option>
+                  </select>
+                </div>
+                <div class="form-group full-width">
+                  <label>Source</label>
+                  <select id="ex-source" required>
+                    <option value="" disabled selected>Select Source</option>
+                    <option value="Call">Call</option>
+                    <option value="Text">Text</option>
+                    <option value="Walk in">Walk in</option>
+                    <option value="Search">Search</option>
+                    <option value="word of mouth">word of mouth</option>
+                    <option value="Membership Plan">Membership Plan</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Dr.Bikram Reference">Dr.Bikram Reference</option>
+                    <option value="Staff Reference">Staff Reference</option>
+                    <option value="Medical store reference">Medical store reference</option>
+                    <option value="Shark tank">Shark tank</option>
+                    <option value="social">social</option>
+                    <option value="BNI">BNI</option>
+                    <option value="Existing patient">Existing patient</option>
+                    <option value="Ongoing patient">Ongoing patient</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group mt-20">
+                <button type="submit" class="btn btn-primary w-100" id="submit-existing-btn">Create Lead for Client</button>
+                <button type="button" class="btn btn-outline w-100 mt-20" onclick="resetAddDataFlow()">Cancel / Start Over</button>
+              </div>
+              <div id="existing-message" class="message"></div>
+            </form>
+          </div>
+
+          <div class="form-container" id="new-client-container" style="display: none; margin-top: 20px;">
+            <h3>Create New Client & Lead</h3>
+            <form id="add-data-form" onsubmit="handleFormSubmit(event)" style="margin-top: 15px;">
               <div class="form-grid">
                 <div class="form-group">
                   <label for="name">Name</label>
@@ -186,7 +265,7 @@
                 </div>
                 <div class="form-group">
                   <label for="phone">Phone Number</label>
-                  <input type="tel" id="phone" name="phone" required placeholder="Enter phone number">
+                  <input type="tel" id="phone" name="phone" required readonly style="background: #eee;">
                 </div>
                 <div class="form-group">
                   <label for="enquiryDate">Enquiry Date</label>
@@ -222,12 +301,36 @@
                   </select>
                 </div>
               </div>
-              <div class="form-group mt-20" style="text-align: right;">
-                <button type="submit" class="btn btn-primary" id="submit-btn" style="min-width: 150px;">Save Customer</button>
+              <div class="form-group mt-20" style="display: flex; gap: 10px;">
+                <button type="button" class="btn btn-outline flex-1" onclick="resetAddDataFlow()">Cancel</button>
+                <button type="submit" class="btn btn-primary flex-1" id="submit-btn">Save Client</button>
               </div>
               <div id="add-message" class="message"></div>
             </form>
           </div>
+        </section>
+
+        <!-- Clients Database Section -->
+        <section id="clients-section" class="content-section">
+          <h1>Clients Database</h1>
+
+          <div class="filter-bar card">
+            <div class="filter-group">
+              <label>Name</label>
+              <input type="text" id="cd-filter-name" placeholder="Search name">
+            </div>
+            <div class="filter-group">
+              <label>Phone</label>
+              <input type="text" id="cd-filter-phone" placeholder="Search phone">
+            </div>
+            <div class="filter-group" style="align-items: flex-end;">
+              <button class="btn btn-primary" onclick="fetchAllClients(1)">Search</button>
+              <button class="btn btn-outline ml-10" onclick="clearClientsFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div id="cd-loading" class="loading" style="display:none;">Loading clients...</div>
+          <div id="cd-list" class="list-container mt-20"></div>
         </section>
 
         <!-- Today Calls Section -->
@@ -283,8 +386,22 @@
 
       </main>
 
+      <!-- Client Detail View Overlay -->
+      <div id="client-detail-overlay" class="detail-overlay" style="display: none;">
+        <div class="detail-container">
+          <div class="detail-header">
+            <h2 id="cd-name" style="color: var(--primary); margin: 0;"></h2>
+            <button class="btn btn-outline btn-close" onclick="closeClientDetail()">Close</button>
+          </div>
+
+          <div class="detail-body" id="cd-body">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+
       <!-- User Detail View Overlay -->
-      <div id="user-detail-overlay" class="detail-overlay" style="display: none;">
+      <div id="user-detail-overlay" class="detail-overlay" style="display: none; z-index: 60;">
         <div class="detail-container">
           <div class="detail-header">
             <h2 id="ud-name" style="color: var(--primary); margin: 0;"></h2>
