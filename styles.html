@@ -120,6 +120,10 @@
     display: flex; flex-wrap: wrap; gap: 15px; padding: 20px; background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
   }
   .filter-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
+  @media (max-width: 768px) {
+    .filter-group { min-width: 100%; }
+    .filter-group button { width: 100%; margin-top: 10px; margin-left: 0 !important; }
+  }
   .filter-group label { font-size: 12px; color: var(--text-light); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
   .filter-group input, .filter-group select { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; background-color: var(--bg-light); }
   .filter-group input:focus, .filter-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,106,127,0.15); background-color: white; }
@@ -146,8 +150,8 @@
   .lead-meta .material-icons { font-size: 16px; }
 
   /* Dashboard Stats */
-  .stats-cards { display: flex; gap: 25px; margin-top: 25px; }
-  .stat-card { flex: 1; background: white; padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s; }
+  .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px; margin-top: 25px; }
+  .stat-card { background: white; padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s; }
   .stat-card:hover { transform: translateY(-4px); }
   .stat-card h3 { font-size: 16px; color: var(--text-light); margin-bottom: 15px; font-weight: 500; }
   .stat-value { font-size: 42px; font-weight: 700; color: var(--primary); letter-spacing: -1px; }
@@ -155,6 +159,13 @@
   .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 25px; }
   @media (max-width: 1024px) {
     .charts-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .stats-cards { grid-template-columns: 1fr; gap: 15px; }
+    .stat-card { padding: 20px; }
+    .stat-card h3 { font-size: 14px; margin-bottom: 10px; }
+    .stat-value { font-size: 32px; }
+    .chart-container { height: 250px !important; }
   }
   .chart-container { position: relative; height: 350px; width: 100%; }
 
