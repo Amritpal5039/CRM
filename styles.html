@@ -189,17 +189,17 @@
   }
   @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
 
-  .detail-container { max-width: 1000px; margin: 0 auto; width: 100%; padding: 40px; display: flex; flex-direction: column; height: 100%; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: translateY(40px); opacity: 0;}
+  .detail-container { max-width: 1000px; margin: 0 auto; width: 100%; padding: 40px; display: flex; flex-direction: column; height: auto; max-height: 100vh; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: translateY(40px); opacity: 0;}
   @keyframes slideUp { to { transform: translateY(0); opacity: 1; } }
   @media (max-width: 768px) {
-    .detail-container { padding: 10px; }
+    .detail-container { padding: 10px; height: auto; min-height: 100%; }
     .detail-header { margin-bottom: 15px; padding-bottom: 10px; }
-    .detail-body { padding: 20px; overflow-y: visible; /* Let the container handle scroll on mobile to avoid double scrollbars */ }
-    .detail-overlay { overflow-y: auto; } /* Let overlay handle scroll on mobile */
+    .detail-body { padding: 20px; overflow-y: visible; /* Let the container handle scroll on mobile to avoid double scrollbars */ margin-bottom: 20px; }
+    .detail-overlay { overflow-y: auto; display: block !important; } /* override flex to allow natural document flow scrolling */
   }
 
-  .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-  .detail-body { flex: 1; overflow-y: auto; background: white; border-radius: 16px; border: 1px solid var(--border); padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+  .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .detail-body { overflow-y: auto; background: white; border-radius: 16px; border: 1px solid var(--border); padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
 
   /* Detail Card Typography */
   .ud-meta-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 30px; }

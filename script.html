@@ -100,6 +100,18 @@
         document.getElementById('stat-conv-new').textContent = stats.newClientConversionRate + '%';
         document.getElementById('stat-conv-returning').textContent = stats.returningReengagementRate + '%';
 
+        const cityListEl = document.getElementById('stat-city-lead-list');
+        if (stats.topLeadCities && stats.topLeadCities.length > 0) {
+          cityListEl.innerHTML = stats.topLeadCities.map((city, idx) => `
+            <li style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-light); border-radius: 8px;">
+              <span style="font-weight: 500; text-transform: capitalize;">${idx + 1}. ${city.name}</span>
+              <span style="color: var(--primary); font-weight: bold;">${city.count} leads</span>
+            </li>
+          `).join('');
+        } else {
+          cityListEl.innerHTML = '<li style="color: var(--text-light); text-align: center;">None</li>';
+        }
+
         renderChart(stats);
         renderTrendChart(stats.timeline);
         renderSourceChart(stats.sources);
@@ -111,16 +123,17 @@
   function renderChart(stats) {
     const ctx = document.getElementById('dashboardChart').getContext('2d');
 
+    const closedTotal = stats.closed + stats.confirmedClosed;
     const labels = [
       'Total', 'Pending', 'Follow Up', 'Not Int', 'Closed', 'No Ans', 'Gen Inq', 'Dropped', 'Pat Will Cont',
-      'Conf (New-Reg)', 'Conf (Ret-Reach)', 'Conf (Ret-NoReach)', 'Conf (Ret-Closed)', 'Conf (No Reg)'
+      'Conf (New-Reg)', 'Conf (Ret-Reach)', 'Conf (Ret-NoReach)', 'Conf (No Reg)'
     ];
     const data = [
       stats.total,
       stats.pending,
       stats.followUp,
       stats.notInterested,
-      stats.closed,
+      closedTotal,
       stats.callNotAnswered,
       stats.generalInquiry,
       stats.callDropped,
@@ -128,12 +141,11 @@
       stats.confirmedWithReg,
       stats.confirmedReached,
       stats.confirmedNotReached,
-      stats.confirmedClosed,
       stats.confirmedWithoutReg
     ];
     const bgColors = [
       '#006A7F', '#fbbc04', '#4285f4', '#ea4335', '#9e9e9e', '#ffb74d', '#00bcd4', '#e53935', '#8e24aa',
-      '#2e7d32', '#34c759', '#7cb342', '#aed581', '#cfd8dc'
+      '#2e7d32', '#34c759', '#7cb342', '#cfd8dc'
     ];
 
     if (dashboardChartInstance) dashboardChartInstance.destroy();
@@ -345,6 +357,7 @@
     let leadsHtml = '';
     if (data.leads && data.leads.length > 0) {
       data.leads.forEach((lead, idx) => {
+        let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
         leadsHtml += `
           <div class="lead-item" style="cursor: pointer; margin-bottom: 10px;" onclick="openUserDetail(${lead.rowIndex})">
             <div class="lead-info">
@@ -353,6 +366,7 @@
                 <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
                 <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
                 <span><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
+                ${arrivalHtml}
               </div>
               <div style="margin-top: 8px; font-size: 13px; color: var(--text-light);">
                 <strong>Latest Note:</strong> ${lead.latestConversation}
@@ -482,6 +496,7 @@
     let html = '';
     leads.forEach(lead => {
       let regIdHtml = lead.registrationId ? `<span><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
+      let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
       html += `
         <div class="lead-item">
           <div class="lead-info">
@@ -492,6 +507,7 @@
               <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
               <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
               ${regIdHtml}
+              ${arrivalHtml}
             </div>
             <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
               <strong>Latest Note:</strong> ${lead.latestConversation}
@@ -645,7 +661,7 @@
         <div class="update-grid">
           <div class="form-group">
             <label>Update Status</label>
-            <select id="ud-update-status" onchange="toggleDetailRegId('${user.clientType}')">${statusOptions}</select>
+            <select id="ud-update-status" data-client-type="${user.clientType}" onchange="toggleDetailRegId('${user.clientType}')">${statusOptions}</select>
           </div>
           <div class="form-group">
             <label>Update Branch</label>
@@ -743,6 +759,17 @@
     const city = cityInput ? cityInput.value.trim() : null;
     const originalCity = document.getElementById('disp-city').getAttribute('data-original-city');
 
+    const clientType = document.getElementById('ud-update-status').getAttribute('data-client-type') || 'New';
+
+    if (status === 'Confirmed') {
+      if (clientType === 'New' && !branch) {
+        return alert('Please select a Branch when confirming a new lead.');
+      }
+      if (clientType === 'Returning' && arrivalStatus === 'Reached' && !branch) {
+        return alert('Please select a Branch when a returning client has reached.');
+      }
+    }
+
     btn.disabled = true;
     btn.textContent = 'Saving...';
     
@@ -800,6 +827,7 @@
   function verifyClientPhone() {
     const phone = document.getElementById('check-phone').value.trim();
     if (!phone) return alert('Please enter a phone number to check.');
+    if (!/^\d{10}$/.test(phone)) return alert('Phone number must be exactly 10 digits.');
 
     const btn = document.getElementById('verify-phone-btn');
     const msg = document.getElementById('verify-message');

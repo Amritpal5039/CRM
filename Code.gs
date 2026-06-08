@@ -317,23 +317,38 @@ function getFilteredClients(params) {
   }
 
   let results = [];
+  const uniquePhones = new Set();
+
+  // Sort to process newer entries first, or keep order. We'll loop normally
   for(let i=1; i < clientsData.length; i++) {
     const row = clientsData[i];
+    const cid = row[0];
+    const count = leadCounts[cid] || 0;
+
+    // Discard clients with 0 leads
+    if (count === 0) continue;
+
+    const phoneRaw = String(row[3]).trim();
+    const phone = phoneRaw.toLowerCase();
+
+    // Prevent UI duplicates if they somehow exist in DB
+    if (uniquePhones.has(phone)) continue;
+    uniquePhones.add(phone);
+
     let match = true;
     const name = String(row[1]).toLowerCase();
-    const phone = String(row[3]).toLowerCase();
 
     if (sName && !name.includes(sName)) match = false;
     if (sPhone && !phone.includes(sPhone)) match = false;
 
     if (match) {
       results.push({
-        clientId: row[0],
+        clientId: cid,
         name: row[1],
         city: row[2],
-        phone: row[3],
+        phone: phoneRaw,
         regId: row[4],
-        leadCount: leadCounts[row[0]] || 0
+        leadCount: count
       });
     }
   }
@@ -411,10 +426,13 @@ function getFilteredLeads(params) {
     if (requireStatus && statusStr.toLowerCase() !== requireStatus.toLowerCase()) match = false;
     if (match && filterStatus && statusStr.toLowerCase() !== filterStatus.toLowerCase()) match = false;
 
-    // Registration ID filter
+    // Confirmation Detail filter
     if (match && params.regIdFilter) {
+      const arrStatus = String(row[10] || "").trim().toLowerCase(); // Arrival Status
       if (params.regIdFilter === "with" && !regId) match = false;
       if (params.regIdFilter === "without" && regId) match = false;
+      if (params.regIdFilter === "reached" && arrStatus !== "reached") match = false;
+      if (params.regIdFilter === "not_reached" && arrStatus !== "not reached") match = false;
     }
 
     // Text filters
@@ -769,7 +787,10 @@ function getDashboardStats(startDateStr, endDateStr) {
 
   const clientsMap = {};
   for(let i = 1; i < clientsData.length; i++) {
-    clientsMap[clientsData[i][0]] = { regId: clientsData[i][4] };
+    clientsMap[clientsData[i][0]] = {
+      regId: clientsData[i][4],
+      city: String(clientsData[i][2] || "Unknown").trim()
+    };
   }
 
   const rows = leadsData.slice(1);
@@ -795,7 +816,9 @@ function getDashboardStats(startDateStr, endDateStr) {
     patientWillContact: 0,
     timeline: {},
     sources: {},
-    leadBy: {}
+    leadBy: {},
+    citiesLead: {},
+    citiesConv: {}
   };
 
   rows.forEach((row) => {
@@ -821,12 +844,41 @@ function getDashboardStats(startDateStr, endDateStr) {
       const regId = String(client.regId || "").trim();
       const arrivalStatusStr = String(row[10] || "").trim().toLowerCase();
 
+      // Basic fuzzy grouping: lowercase and strip non-letters to group spelling variations
+      // (e.g., "New York", "newyork", " New  York")
+      let cityRaw = client.city || "Unknown";
+      let city = cityRaw.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (city === "") city = "unknown";
+
+      let isConverted = false;
+
       if (clientType === "New") {
         stats.newLeadsTotal++;
-        if (statusStr === "confirmed" && regId !== "") stats.newLeadsConverted++;
+        if (statusStr === "confirmed" && regId !== "") {
+          stats.newLeadsConverted++;
+          isConverted = true;
+        }
       } else if (clientType === "Returning") {
         stats.returningLeadsTotal++;
-        if (statusStr === "confirmed" && arrivalStatusStr === "reached") stats.returningLeadsReengaged++;
+        if (statusStr === "confirmed" && arrivalStatusStr === "reached") {
+          stats.returningLeadsReengaged++;
+          isConverted = true;
+        }
+      }
+
+      // City breakdown
+      if (city) {
+        if (!stats.citiesLead[city]) stats.citiesLead[city] = { count: 0, originalName: cityRaw };
+        stats.citiesLead[city].count++;
+        // Maintain the longest/most formatted original name for display
+        if (cityRaw.length > stats.citiesLead[city].originalName.length) {
+          stats.citiesLead[city].originalName = cityRaw;
+        }
+
+        if (isConverted) {
+          if (!stats.citiesConv[city]) stats.citiesConv[city] = 0;
+          stats.citiesConv[city]++;
+        }
       }
 
       // Status breakdown
@@ -879,11 +931,25 @@ function getDashboardStats(startDateStr, endDateStr) {
   Object.keys(stats.timeline).sort().forEach((k) => { sortedTimeline[k] = stats.timeline[k]; });
 
   stats.timeline = sortedTimeline;
-  stats.confirmed = stats.confirmedWithReg + stats.confirmedWithoutReg;
+  stats.confirmed = stats.confirmedWithReg + stats.confirmedReached + stats.confirmedNotReached + stats.confirmedClosed + stats.confirmedWithoutReg;
 
   stats.overallConversionRate = stats.total > 0 ? (((stats.newLeadsConverted + stats.returningLeadsReengaged) / stats.total) * 100).toFixed(2) : "0.00";
   stats.newClientConversionRate = stats.newLeadsTotal > 0 ? ((stats.newLeadsConverted / stats.newLeadsTotal) * 100).toFixed(2) : "0.00";
   stats.returningReengagementRate = stats.returningLeadsTotal > 0 ? ((stats.returningLeadsReengaged / stats.returningLeadsTotal) * 100).toFixed(2) : "0.00";
+
+  // Calculate Top 5 Cities
+  let cityList = [];
+  for (let c in stats.citiesLead) {
+    if (c !== "unknown") {
+      cityList.push({
+        name: stats.citiesLead[c].originalName,
+        count: stats.citiesLead[c].count
+      });
+    }
+  }
+
+  cityList.sort((a, b) => b.count - a.count);
+  stats.topLeadCities = cityList.slice(0, 5);
 
   return stats;
 }

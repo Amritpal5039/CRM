@@ -103,6 +103,12 @@
               <h3>Returning Re-engagement</h3>
               <div id="stat-conv-returning" class="stat-value" style="color: #fbbc04;">0%</div>
             </div>
+            <div class="stat-card" style="grid-column: span 2;">
+              <h3>Top 5 Lead Cities</h3>
+              <ul id="stat-city-lead-list" style="list-style: none; text-align: left; font-size: 16px; color: var(--text-dark); display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px;">
+                <li style="color: var(--text-light); text-align: center;">None</li>
+              </ul>
+            </div>
           </div>
 
           <div class="charts-grid mt-20">
@@ -162,11 +168,13 @@
               </select>
             </div>
             <div class="filter-group" id="al-reg-filter-group" style="display: none;">
-              <label>Registration</label>
+              <label>Confirmation Detail</label>
               <select id="al-filter-reg">
                 <option value="">All Confirmed</option>
                 <option value="with">With Registration ID</option>
                 <option value="without">Without Registration ID</option>
+                <option value="reached">Reached</option>
+                <option value="not_reached">Not Reached</option>
               </select>
             </div>
             <div class="filter-group">
@@ -196,7 +204,7 @@
             <p style="margin-bottom: 15px; color: var(--text-light);">Enter the client's phone number to check if they already exist.</p>
             <div class="form-group">
               <label>Phone Number</label>
-              <input type="tel" id="check-phone" placeholder="Enter phone number">
+              <input type="tel" id="check-phone" pattern="[0-9]{10}" placeholder="Enter 10 digit phone number" title="Please enter exactly 10 digits">
             </div>
             <button class="btn btn-primary" onclick="verifyClientPhone()" id="verify-phone-btn">Check Client</button>
             <div id="verify-message" class="message"></div>
@@ -265,7 +273,7 @@
                 </div>
                 <div class="form-group">
                   <label for="phone">Phone Number</label>
-                  <input type="tel" id="phone" name="phone" required readonly style="background: #eee;">
+                  <input type="tel" id="phone" name="phone" pattern="[0-9]{10}" required readonly style="background: #eee;" title="Please enter exactly 10 digits">
                 </div>
                 <div class="form-group">
                   <label for="enquiryDate">Enquiry Date</label>
