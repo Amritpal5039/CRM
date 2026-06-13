@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base target="_top">
     <?!= include('styles'); ?>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -30,13 +32,28 @@
 
     <!-- Main App Container -->
     <div id="app-container" class="app-container" style="display: none;">
+      <!-- Mobile Header -->
+      <header class="mobile-header">
+        <button class="menu-toggle-btn" onclick="toggleSidebar(true)" aria-label="Open menu">
+          <span class="material-icons">menu</span>
+        </button>
+        <span class="mobile-title">Customer Care</span>
+        <div style="width: 40px;"></div> <!-- spacer -->
+      </header>
+
+      <!-- Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+
       <!-- Sidebar -->
-      <nav class="sidebar">
+      <nav id="app-sidebar" class="sidebar">
         <div class="logo">
           <img src="https://drive.google.com/uc?export=view&id=1d__SS0NN98N_uK7ngoogZlbm-Wx_brsF" alt="Logo" style="max-width: 100%; max-height: 50px; margin-bottom: 10px;" onerror="this.style.display='none'">
           <h2>Customer Care</h2>
-          <div id="logged-in-user" style="font-size: 12px; color: var(--text-light); margin-top: 5px;"></div>
+          <button class="sidebar-close-btn" onclick="toggleSidebar(false)" aria-label="Close menu">
+            <span class="material-icons">close</span>
+          </button>
         </div>
+        <div id="logged-in-user" class="logged-in-user"></div>
         <ul class="nav-links">
           <li class="active" onclick="showSection('dashboard-section', this); fetchDashboardStats();">
             <span class="material-icons">dashboard</span> Dashboard
@@ -50,7 +67,7 @@
           <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
             <span class="material-icons">contact_phone</span> Today Calls
           </li>
-          <li onclick="logout()" style="margin-top: auto;">
+          <li onclick="logout()" class="logout-link">
             <span class="material-icons">logout</span> Logout
           </li>
         </ul>
@@ -64,16 +81,18 @@
           <h1>Dashboard</h1>
           
           <div class="filter-bar card">
-            <div class="filter-group">
-              <label>Start Date</label>
-              <input type="date" id="dash-start-date">
-            </div>
-            <div class="filter-group">
-              <label>End Date</label>
-              <input type="date" id="dash-end-date">
-            </div>
-            <div class="filter-group" style="align-items: flex-end;">
-              <button class="btn btn-primary" onclick="fetchDashboardStats()">Filter</button>
+            <div class="filter-grid">
+              <div class="filter-group">
+                <label for="dash-start-date">Start Date</label>
+                <input type="date" id="dash-start-date">
+              </div>
+              <div class="filter-group">
+                <label for="dash-end-date">End Date</label>
+                <input type="date" id="dash-end-date">
+              </div>
+              <div class="filter-group filter-submit-inline">
+                <button class="btn btn-primary w-100" onclick="fetchDashboardStats()">Filter</button>
+              </div>
             </div>
           </div>
 
@@ -98,36 +117,47 @@
           <h1>All Leads</h1>
           
           <div class="filter-bar card">
-            <div class="filter-group">
-              <label>Name</label>
-              <input type="text" id="al-filter-name" placeholder="Search name">
+            <div class="filter-header" onclick="toggleFilters('al-filter-inputs', this)">
+              <div class="filter-header-left">
+                <span class="material-icons">filter_list</span>
+                <h3>Filters</h3>
+              </div>
+              <span class="material-icons filter-chevron">expand_more</span>
             </div>
-            <div class="filter-group">
-              <label>Phone</label>
-              <input type="text" id="al-filter-phone" placeholder="Search phone">
-            </div>
-            <div class="filter-group">
-              <label>Location</label>
-              <input type="text" id="al-filter-city" placeholder="Search city">
-            </div>
-            <div class="filter-group">
-              <label>Start Date</label>
-              <input type="date" id="al-filter-start">
-            </div>
-            <div class="filter-group">
-              <label>End Date</label>
-              <input type="date" id="al-filter-end">
-            </div>
-            <div class="filter-group">
-              <label>Sort By</label>
-              <select id="al-filter-sort">
-                <option value="fresh">Fresh First</option>
-                <option value="oldest">Oldest First</option>
-              </select>
-            </div>
-            <div class="filter-group" style="align-items: flex-end;">
-              <button class="btn btn-primary" onclick="fetchAllLeads(1)">Apply</button>
-              <button class="btn btn-outline ml-10" onclick="clearAllLeadsFilters()">Clear</button>
+            <div class="filter-inputs collapsed" id="al-filter-inputs">
+              <div class="filter-grid">
+                <div class="filter-group">
+                  <label for="al-filter-name">Name</label>
+                  <input type="text" id="al-filter-name" placeholder="Search name">
+                </div>
+                <div class="filter-group">
+                  <label for="al-filter-phone">Phone</label>
+                  <input type="text" id="al-filter-phone" placeholder="Search phone">
+                </div>
+                <div class="filter-group">
+                  <label for="al-filter-city">Location</label>
+                  <input type="text" id="al-filter-city" placeholder="Search city">
+                </div>
+                <div class="filter-group">
+                  <label for="al-filter-start">Start Date</label>
+                  <input type="date" id="al-filter-start">
+                </div>
+                <div class="filter-group">
+                  <label for="al-filter-end">End Date</label>
+                  <input type="date" id="al-filter-end">
+                </div>
+                <div class="filter-group">
+                  <label for="al-filter-sort">Sort By</label>
+                  <select id="al-filter-sort">
+                    <option value="fresh">Fresh First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
+              </div>
+              <div class="filter-actions">
+                <button class="btn btn-primary" onclick="fetchAllLeads(1)">Apply Filters</button>
+                <button class="btn btn-outline" onclick="clearAllLeadsFilters()">Clear All</button>
+              </div>
             </div>
           </div>
 
@@ -173,28 +203,39 @@
           <h1>Today's Call Contact List</h1>
           
           <div class="filter-bar card">
-            <div class="filter-group">
-              <label>Name</label>
-              <input type="text" id="tc-filter-name" placeholder="Search name">
+            <div class="filter-header" onclick="toggleFilters('tc-filter-inputs', this)">
+              <div class="filter-header-left">
+                <span class="material-icons">filter_list</span>
+                <h3>Filters</h3>
+              </div>
+              <span class="material-icons filter-chevron">expand_more</span>
             </div>
-            <div class="filter-group">
-              <label>Phone</label>
-              <input type="text" id="tc-filter-phone" placeholder="Search phone">
-            </div>
-            <div class="filter-group">
-              <label>Location</label>
-              <input type="text" id="tc-filter-city" placeholder="Search city">
-            </div>
-            <div class="filter-group">
-              <label>Sort By</label>
-              <select id="tc-filter-sort">
-                <option value="fresh">Fresh First</option>
-                <option value="oldest">Oldest First</option>
-              </select>
-            </div>
-            <div class="filter-group" style="align-items: flex-end;">
-              <button class="btn btn-primary" onclick="fetchTodayCalls(1)">Apply</button>
-              <button class="btn btn-outline ml-10" onclick="clearTodayCallsFilters()">Clear</button>
+            <div class="filter-inputs collapsed" id="tc-filter-inputs">
+              <div class="filter-grid">
+                <div class="filter-group">
+                  <label for="tc-filter-name">Name</label>
+                  <input type="text" id="tc-filter-name" placeholder="Search name">
+                </div>
+                <div class="filter-group">
+                  <label for="tc-filter-phone">Phone</label>
+                  <input type="text" id="tc-filter-phone" placeholder="Search phone">
+                </div>
+                <div class="filter-group">
+                  <label for="tc-filter-city">Location</label>
+                  <input type="text" id="tc-filter-city" placeholder="Search city">
+                </div>
+                <div class="filter-group">
+                  <label for="tc-filter-sort">Sort By</label>
+                  <select id="tc-filter-sort">
+                    <option value="fresh">Fresh First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
+              </div>
+              <div class="filter-actions">
+                <button class="btn btn-primary" onclick="fetchTodayCalls(1)">Apply Filters</button>
+                <button class="btn btn-outline" onclick="clearTodayCallsFilters()">Clear All</button>
+              </div>
             </div>
           </div>
 
@@ -210,8 +251,13 @@
       <div id="user-detail-overlay" class="detail-overlay" style="display: none;">
         <div class="detail-container">
           <div class="detail-header">
-            <h2 id="ud-name" style="color: var(--primary); margin: 0;"></h2>
-            <button class="btn btn-outline btn-close" onclick="closeUserDetail()">Close</button>
+            <div class="detail-header-left">
+              <span class="material-icons modal-icon">person</span>
+              <h2 id="ud-name" style="margin: 0;"></h2>
+            </div>
+            <button class="btn btn-outline btn-close" onclick="closeUserDetail()">
+              <span class="material-icons">close</span> Close
+            </button>
           </div>
           
           <div class="detail-body" id="ud-body">

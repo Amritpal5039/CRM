@@ -3,7 +3,37 @@
   let dashboardChartInstance = null;
   let currentDetailRowIndex = null;
 
-  // Login
+  // Mobile Sidebar Toggle
+  function toggleSidebar(isOpen) {
+    const sidebar = document.getElementById('app-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    
+    if (isOpen === undefined) {
+      sidebar.classList.toggle('open');
+      backdrop.classList.toggle('active');
+    } else if (isOpen) {
+      sidebar.classList.add('open');
+      backdrop.classList.add('active');
+    } else {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('active');
+    }
+  }
+
+  // Mobile Filters Accordion Toggle
+  function toggleFilters(inputsId, headerEl) {
+    const inputs = document.getElementById(inputsId);
+    const bar = headerEl.closest('.filter-bar');
+    if (inputs.classList.contains('collapsed')) {
+      inputs.classList.remove('collapsed');
+      bar.classList.add('expanded');
+    } else {
+      inputs.classList.add('collapsed');
+      bar.classList.remove('expanded');
+    }
+  }
+
+  // Handle User Login
   function handleLogin(event) {
     event.preventDefault();
     const btn = document.getElementById('login-btn');
@@ -62,6 +92,7 @@
       element.classList.add('active');
     }
     closeUserDetail();
+    toggleSidebar(false); // Close mobile drawer when user switches section
   }
 
   // --- Dashboard ---
@@ -91,11 +122,39 @@
       data: {
         labels: labels,
         datasets: [
-          { label: 'Total Enquiries', data: totalData, backgroundColor: '#1a73e8' },
-          { label: 'Confirmed', data: confirmedData, backgroundColor: '#34a853' }
+          { label: 'Total Enquiries', data: totalData, backgroundColor: '#1a73e8', borderRadius: 4 },
+          { label: 'Confirmed', data: confirmedData, backgroundColor: '#137333', borderRadius: 4 }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false, 
+        plugins: {
+          legend: {
+            labels: {
+              font: {
+                family: "'Plus Jakarta Sans', sans-serif",
+                size: 12
+              }
+            }
+          }
+        },
+        scales: { 
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { family: "'Plus Jakarta Sans', sans-serif" }
+            }
+          },
+          y: { 
+            beginAtZero: true, 
+            ticks: { 
+              stepSize: 1,
+              font: { family: "'Plus Jakarta Sans', sans-serif" }
+            } 
+          } 
+        } 
+      }
     });
   }
 
@@ -121,7 +180,7 @@
       page: page
     };
     
-    document.getElementById('al-loading').style.display = 'block';
+    document.getElementById('al-loading').style.display = 'flex';
     document.getElementById('al-list').innerHTML = '';
     document.getElementById('al-pagination').innerHTML = '';
 
@@ -153,7 +212,7 @@
       page: page
     };
     
-    document.getElementById('tc-loading').style.display = 'block';
+    document.getElementById('tc-loading').style.display = 'flex';
     document.getElementById('tc-list').innerHTML = '';
     document.getElementById('tc-pagination').innerHTML = '';
 
@@ -170,12 +229,13 @@
   function renderLeadsList(containerId, leads) {
     const container = document.getElementById(containerId);
     if (leads.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-light)">No records found matching criteria.</p>';
+      container.innerHTML = '<p style="color:var(--text-light); text-align: center; padding: 24px;">No records found matching criteria.</p>';
       return;
     }
 
     let html = '';
     leads.forEach(lead => {
+      const statusClass = (lead.status || 'Pending').toLowerCase().replace(/\s+/g, '-');
       html += `
         <div class="lead-item">
           <div class="lead-info">
@@ -184,9 +244,9 @@
               <span><span class="material-icons">phone</span> ${lead.phone}</span>
               <span><span class="material-icons">location_on</span> ${lead.city}</span>
               <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
-              <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
+              <span class="status-badge badge-${statusClass}">${lead.status || 'Pending'}</span>
             </div>
-            <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
+            <div class="latest-note-box">
               <strong>Latest Note:</strong> ${lead.latestConversation}
             </div>
           </div>
@@ -239,6 +299,27 @@
     }
   }
 
+  // Handle registration ID showing dynamically in detail panel
+  function handleStatusChange(status, currentRegId) {
+    const regContainer = document.getElementById('ud-reg-id-container');
+    const regInput = document.getElementById('ud-update-reg-id');
+    
+    if (status === 'Confirmed') {
+      regContainer.style.display = 'block';
+      if (regInput) {
+        regInput.required = true;
+        if (!regInput.value && currentRegId) {
+          regInput.value = currentRegId;
+        }
+      }
+    } else {
+      regContainer.style.display = 'none';
+      if (regInput) {
+        regInput.required = false;
+      }
+    }
+  }
+
   function renderUserDetail(user) {
     document.getElementById('ud-name').textContent = user.name;
     
@@ -255,7 +336,7 @@
       });
       convHtml += '</div>';
     } else {
-      convHtml = `<div class="conversations-list" id="ud-conv-list"><p>No conversations yet.</p></div>`;
+      convHtml = `<div class="conversations-list" id="ud-conv-list"><p style="color: var(--text-light); text-align: center;">No conversations yet.</p></div>`;
     }
 
     const statusOptions = ['Pending', 'Confirmed', 'Not Interested', 'Follow Up'].map(opt => 
@@ -264,13 +345,14 @@
 
     const html = `
       <div class="ud-meta-grid">
-        <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value" id="disp-city">${user.city}</div></div>
-        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone">${user.phone}</div></div>
-        <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
-        <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
-        <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status">${user.status || 'Pending'}</div></div>
-        <div class="ud-row"><div class="ud-label">Branch:</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
-        <div class="ud-row"><div class="ud-label">Contact Again Date:</div><div class="ud-value" id="disp-cad">${user.contactAgainDate || 'None'}</div></div>
+        <div class="ud-row"><div class="ud-label">City</div><div class="ud-value" id="disp-city">${user.city || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Phone</div><div class="ud-value" id="disp-phone">${user.phone || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Enquiry Date</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Source</div><div class="ud-value" id="disp-source">${user.source || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Status</div><div class="ud-value" id="disp-status">${user.status || 'Pending'}</div></div>
+        <div class="ud-row"><div class="ud-label">Branch</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
+        <div class="ud-row"><div class="ud-label">Contact Again Date</div><div class="ud-value" id="disp-cad">${user.contactAgainDate || 'None'}</div></div>
+        <div class="ud-row"><div class="ud-label">Registration ID</div><div class="ud-value" id="disp-regId">${user.registrationId || 'None'}</div></div>
       </div>
 
       <div class="ud-section-title">Conversations</div>
@@ -280,19 +362,24 @@
         <div class="update-box-title">Add Note & Update Status</div>
         <div class="update-grid">
           <div class="form-group">
-            <label>Update Status</label>
-            <select id="ud-update-status">${statusOptions}</select>
+            <label for="ud-update-status">Update Status</label>
+            <select id="ud-update-status" onchange="handleStatusChange(this.value, '${user.registrationId || ''}')">${statusOptions}</select>
           </div>
           <div class="form-group">
-            <label>Update Branch</label>
+            <label for="ud-update-branch">Update Branch</label>
             <input type="text" id="ud-update-branch" value="${user.branch || ''}" placeholder="e.g. Downtown">
           </div>
           <div class="form-group">
-            <label>Contact Again Date</label>
+            <label for="ud-update-cad">Contact Again Date</label>
             <input type="date" id="ud-update-cad" value="${user.contactAgainDate || ''}">
+          </div>
+          <div class="form-group reg-id-group" id="ud-reg-id-container" style="display: none;">
+            <label for="ud-update-reg-id">Registration ID <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="ud-update-reg-id" value="${user.registrationId || ''}" placeholder="Enter Registration ID">
           </div>
         </div>
         <div class="form-group">
+          <label for="ud-new-conv">Conversation Notes</label>
           <textarea id="ud-new-conv" rows="2" placeholder="Add latest conversation notes..."></textarea>
         </div>
         <button class="btn btn-primary" onclick="saveUserDetailConversation(this)">Add Note & Update</button>
@@ -300,6 +387,9 @@
     `;
     
     document.getElementById('ud-body').innerHTML = html;
+    
+    // Check status immediately to show Registration ID if status is Confirmed
+    handleStatusChange(user.status, user.registrationId);
   }
 
   function saveUserDetailConversation(btn) {
@@ -312,6 +402,14 @@
     const status = document.getElementById('ud-update-status').value;
     const branch = document.getElementById('ud-update-branch').value;
     const cad = document.getElementById('ud-update-cad').value;
+    
+    // Retrieve Registration ID
+    const regIdInput = document.getElementById('ud-update-reg-id');
+    const regId = regIdInput ? regIdInput.value.trim() : '';
+    
+    if (status === 'Confirmed' && !regId) {
+      return alert('Registration ID is required when status is Confirmed.');
+    }
     
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -326,6 +424,11 @@
         if(response.status) document.getElementById('disp-status').textContent = response.status;
         if(response.branch) document.getElementById('disp-branch').textContent = response.branch;
         if(response.contactAgainDate) document.getElementById('disp-cad').textContent = response.contactAgainDate;
+        if(response.registrationId) {
+          document.getElementById('disp-regId').textContent = response.registrationId;
+        } else {
+          document.getElementById('disp-regId').textContent = 'None';
+        }
 
         // Re-render conversation list inline
         const convListDiv = document.getElementById('ud-conv-list');
@@ -339,13 +442,16 @@
             </div>`;
         });
         convListDiv.innerHTML = newHtml;
+        
+        // Update handling status changes again
+        handleStatusChange(response.status, response.registrationId);
       })
       .withFailureHandler(function(error) {
         btn.disabled = false;
         btn.textContent = 'Add Note & Update';
         alert('Error saving note: ' + error.message);
       })
-      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad);
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regId);
   }
 
   // --- Add Data Form ---
