@@ -16,11 +16,6 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// Keep-alive ping — called by the frontend to prevent session expiry
-function ping() {
-  return true;
-}
-
 const CLIENTS_SHEET = "Clients";
 const LEADS_SHEET = "Leads";
 

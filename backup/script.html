@@ -7,123 +7,28 @@
   let sourceChartInstance = null;
   let leadByChartInstance = null;
   let currentDetailRowIndex = null;
-  let currentClientDetailId = null;
-  let appHistoryReady = false;
-  let previousSectionId = 'dashboard-section'; // track where we came from before lead detail
-
-  // --- Inactivity / Session Keep-Alive ---
-  const INACTIVITY_WARNING_MS = 25 * 60 * 1000; // warn at 25 min
-  const INACTIVITY_LOGOUT_MS  = 30 * 60 * 1000; // logout at 30 min
-  let inactivityWarningTimer = null;
-  let inactivityLogoutTimer  = null;
-
-  function normalizeInput(value) {
-    return String(value || '').trim();
-  }
-
-  function setLoginMessage(message) {
-    const msgDiv = document.getElementById('login-message');
-    msgDiv.textContent = message || '';
-    msgDiv.style.display = message ? 'block' : 'none';
-    document.getElementById('username').toggleAttribute('aria-invalid', Boolean(message));
-    document.getElementById('password').toggleAttribute('aria-invalid', Boolean(message));
-  }
-
-  function getActiveSectionId() {
-    const active = document.querySelector('.content-section.active');
-    return active ? active.id : 'dashboard-section';
-  }
-
-  function getCurrentAppState() {
-    const section = getActiveSectionId();
-    if (section === 'lead-detail-section' && currentDetailRowIndex) {
-      return { view: 'app', section: section, rowIndex: currentDetailRowIndex };
-    }
-    if (document.getElementById('client-detail-overlay').style.display === 'flex' && currentClientDetailId) {
-      return { view: 'app', section: section, overlay: 'client', clientId: currentClientDetailId };
-    }
-    return { view: 'app', section: section };
-  }
-
-  function initAppHistory() {
-    history.replaceState({ view: 'app', section: getActiveSectionId() }, '', location.href);
-    if (!appHistoryReady) {
-      appHistoryReady = true;
-      window.addEventListener('popstate', handleAppPopState);
-    }
-  }
-
-  function pushAppState(state) {
-    if (!currentUser || !appHistoryReady) return;
-    history.pushState(Object.assign({ view: 'app', section: getActiveSectionId() }, state), '', location.href);
-  }
-
-  function loadSectionData(sectionId) {
-    if (sectionId === 'dashboard-section') fetchDashboardStats();
-    if (sectionId === 'all-leads-section') fetchAllLeads(1);
-    if (sectionId === 'clients-section') fetchAllClients(1);
-    if (sectionId === 'today-calls-section') fetchTodayCalls(1);
-  }
-
-  function handleAppPopState(event) {
-    if (!currentUser) return;
-    const state = event.state;
-    if (!state || state.view !== 'app') {
-      history.pushState(getCurrentAppState(), '', location.href);
-      return;
-    }
-
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-container').style.display = 'flex';
-    showSection(state.section || 'dashboard-section', null, false);
-    loadSectionData(state.section || 'dashboard-section');
-
-    if (state.overlay === 'client' && state.clientId) {
-      openClientDetail(state.clientId, false);
-    } else if (state.section === 'lead-detail-section' && state.rowIndex) {
-      openLeadDetailPage(state.rowIndex, false);
-    }
-  }
-
-  function statusClass(status) {
-    const key = normalizeInput(status || 'Pending').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    return 'status-' + (key || 'pending');
-  }
-
-  function statusBadge(status) {
-    const label = normalizeInput(status || 'Pending') || 'Pending';
-    return `<span class="status-badge ${statusClass(label)}"><span class="material-icons">flag</span>${label}</span>`;
-  }
-
-  function leadDateHtml(lead) {
-    if (lead.contactAgainDate) {
-      return `<span class="lead-date cad-date"><span class="material-icons">event_repeat</span> CAD: ${lead.contactAgainDate}</span>`;
-    }
-    return `<span class="lead-date"><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>`;
-  }
 
   // Login
   function handleLogin(event) {
     event.preventDefault();
     const btn = document.getElementById('login-btn');
-    const user = normalizeInput(document.getElementById('username').value);
-    const pass = normalizeInput(document.getElementById('password').value);
+    const msgDiv = document.getElementById('login-message');
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
 
     btn.disabled = true;
     btn.textContent = 'Logging in...';
-    setLoginMessage('');
+    msgDiv.style.display = 'none';
 
     google.script.run
       .withSuccessHandler(function(response) {
         if (response.success) {
           currentUser = response.name;
-          currentUsername = user;
+          currentUsername = user; // store the raw username
           isCurrentUserAdmin = response.isAdmin;
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('app-container').style.display = 'flex';
           document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser + (isCurrentUserAdmin ? ' (Admin)' : '');
-          initAppHistory();
-          startInactivityTimer(); // begin inactivity countdown
           
           // Defaults for dashboard
           const today = new Date();
@@ -133,13 +38,15 @@
           
           fetchDashboardStats();
         } else {
-          setLoginMessage(response.message || 'Invalid credentials');
+          msgDiv.style.display = 'block';
+          msgDiv.textContent = response.message;
           btn.disabled = false;
           btn.textContent = 'Login';
         }
       })
       .withFailureHandler(function(error) {
-        setLoginMessage('Error: ' + error.message);
+        msgDiv.style.display = 'block';
+        msgDiv.textContent = 'Error: ' + error.message;
         btn.disabled = false;
         btn.textContent = 'Login';
       })
@@ -150,12 +57,9 @@
     currentUser = null;
     currentUsername = null;
     isCurrentUserAdmin = false;
-    clearInactivityTimers();
     document.getElementById('login-form').reset();
-    setLoginMessage('');
     document.getElementById('app-container').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
-    history.replaceState({ view: 'login' }, '', location.href);
   }
 
   function toggleSidebar() {
@@ -169,21 +73,15 @@
     }
   }
 
-  function showSection(sectionId, element, shouldPushState = true) {
+  function showSection(sectionId, element) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
     
     if (element) {
       document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
       element.classList.add('active');
-    } else {
-      document.querySelectorAll('.nav-links li').forEach(li => {
-        const onclick = li.getAttribute('onclick') || '';
-        li.classList.toggle('active', onclick.indexOf(sectionId) !== -1);
-      });
     }
-    closeClientDetail(false);
-    if (shouldPushState) pushAppState({ section: sectionId });
+    closeUserDetail();
     
     // Auto-close sidebar on mobile after clicking a link
     if (window.innerWidth <= 768) {
@@ -409,7 +307,7 @@
               <span><span class="material-icons">location_on</span> ${client.city}</span>
               ${regIdHtml}
             </div>
-            <div class="lead-count">
+            <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
               <strong>Total Leads Generated:</strong> ${client.leadCount}
             </div>
           </div>
@@ -425,28 +323,18 @@
   }
 
   // --- Client Detail View ---
-  function openClientDetail(clientId, shouldPushState = true) {
-    currentClientDetailId = clientId;
+  function openClientDetail(clientId) {
     document.getElementById('client-detail-overlay').style.display = 'flex';
     document.getElementById('cd-body').innerHTML = '<div class="loading">Loading client details...</div>';
     document.getElementById('cd-name').textContent = 'Loading...';
-    if (shouldPushState) pushAppState({ overlay: 'client', clientId: clientId });
 
     google.script.run
       .withSuccessHandler(renderClientDetail)
-      .withFailureHandler(function(error) {
-        document.getElementById('cd-name').textContent = 'Client details';
-        document.getElementById('cd-body').innerHTML = `<div class="message error" style="display:block;">Error loading client: ${error.message}</div>`;
-      })
       .getClientDetailsWithLeads(clientId);
   }
 
-  function closeClientDetail(syncHistory = true) {
+  function closeClientDetail() {
     document.getElementById('client-detail-overlay').style.display = 'none';
-    currentClientDetailId = null;
-    if (syncHistory && history.state && history.state.overlay === 'client') {
-      history.back();
-    }
   }
 
   function renderClientDetail(data) {
@@ -470,18 +358,17 @@
     if (data.leads && data.leads.length > 0) {
       data.leads.forEach((lead, idx) => {
         let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
-        const dateHtml = leadDateHtml(lead);
         leadsHtml += `
           <div class="lead-item" style="cursor: pointer; margin-bottom: 10px;" onclick="openUserDetail(${lead.rowIndex})">
             <div class="lead-info">
               <span class="lead-name" style="font-size: 16px;">Lead ${data.leads.length - idx} <span style="font-size: 12px; color: var(--text-light); font-weight: normal;">(${lead.clientType})</span></span>
               <div class="lead-meta" style="margin-top: 5px;">
-                ${dateHtml}
-                ${statusBadge(lead.status)}
+                <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
+                <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
                 <span><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
                 ${arrivalHtml}
               </div>
-              <div class="lead-note">
+              <div style="margin-top: 8px; font-size: 13px; color: var(--text-light);">
                 <strong>Latest Note:</strong> ${lead.latestConversation}
               </div>
             </div>
@@ -496,24 +383,17 @@
     }
 
     const html = `
-      <div class="detail-summary">
-        <div>
-          <div class="detail-eyebrow">Client Profile</div>
-          <div class="detail-primary"><span class="material-icons">call</span><a href="tel:${data.phone}" style="color: var(--primary); text-decoration: none;">${data.phone}</a></div>
-        </div>
-        <div class="detail-chip">${data.leads ? data.leads.length : 0} leads</div>
-      </div>
-
       <div class="ud-meta-grid">
         <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value">${data.city}</div></div>
+        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value"><a href="tel:${data.phone}" style="color: var(--primary); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 5px;"><span class="material-icons" style="font-size: 16px;">call</span> ${data.phone}</a></div></div>
         <div class="ud-row"><div class="ud-label">First Enquiry:</div><div class="ud-value">${data.enquiryDate}</div></div>
         <div class="ud-row"><div class="ud-label">Orig. Source:</div><div class="ud-value">${data.source}</div></div>
         <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value">${data.registrationId || 'None'}</div></div>
       </div>
       
-      ${histHtml ? `<div class="detail-section"><div class="ud-section-title">Edit History</div>${histHtml}</div>` : ''}
+      ${histHtml ? `<div class="ud-section-title">Edit History</div>${histHtml}` : ''}
 
-      <div class="detail-section"><div class="ud-section-title">Generated Leads</div></div>
+      <div class="ud-section-title" style="margin-top: 20px;">Generated Leads</div>
       <div class="list-container">
         ${leadsHtml}
       </div>
@@ -617,7 +497,6 @@
     leads.forEach(lead => {
       let regIdHtml = lead.registrationId ? `<span><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
       let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
-      const dateHtml = leadDateHtml(lead);
       html += `
         <div class="lead-item">
           <div class="lead-info">
@@ -625,12 +504,12 @@
             <div class="lead-meta">
               <span><span class="material-icons">phone</span> <a href="tel:${lead.phone}" style="color: inherit; text-decoration: none;">${lead.phone}</a></span>
               <span><span class="material-icons">location_on</span> ${lead.city}</span>
-              ${dateHtml}
-              ${statusBadge(lead.status)}
+              <span><span class="material-icons">calendar_today</span> ${lead.enquiryDate}</span>
+              <span><span class="material-icons">flag</span> ${lead.status || 'Pending'}</span>
               ${regIdHtml}
               ${arrivalHtml}
             </div>
-            <div class="lead-note">
+            <div style="margin-top: 5px; font-size: 13px; color: var(--text-light);">
               <strong>Latest Note:</strong> ${lead.latestConversation}
             </div>
           </div>
@@ -665,75 +544,41 @@
     container.innerHTML = html;
   }
 
-  // --- Lead Detail Page (replaces overlay) ---
-  function openLeadDetailPage(rowIndex, shouldPushState = true) {
+  // --- User Detail View (Overlay) ---
+  function openUserDetail(rowIndex) {
     currentDetailRowIndex = rowIndex;
-    // Remember which section we came from
-    const fromSection = getActiveSectionId();
-    if (fromSection !== 'lead-detail-section') {
-      previousSectionId = fromSection;
-    }
-    
-    // Navigate to lead-detail-section as a real page section
-    showSection('lead-detail-section', null, false);
-    
-    // Scroll to top of main content area
-    const mainContent = document.getElementById('main-content-area');
-    if (mainContent) mainContent.scrollTop = 0;
-    window.scrollTo(0, 0);
-    
-    document.getElementById('ld-page-title').textContent = 'Lead Details';
-    document.getElementById('ld-page-body').innerHTML = '<div class="loading">Loading details...</div>';
-    
-    if (shouldPushState) pushAppState({ section: 'lead-detail-section', rowIndex: rowIndex });
+    document.getElementById('user-detail-overlay').style.display = 'flex';
+    document.getElementById('ud-body').innerHTML = '<div class="loading">Loading details...</div>';
+    document.getElementById('ud-name').textContent = 'Loading...';
 
     google.script.run
       .withSuccessHandler(renderUserDetail)
-      .withFailureHandler(function(error) {
-        document.getElementById('ld-page-title').textContent = 'Lead Details';
-        document.getElementById('ld-page-body').innerHTML = `<div class="message error" style="display:block;">Error loading lead: ${error.message}</div>`;
-      })
       .getUserDetails(rowIndex);
   }
 
-  // Keep backward-compat alias so any other calls still work
-  function openUserDetail(rowIndex, shouldPushState = true) {
-    openLeadDetailPage(rowIndex, shouldPushState);
-  }
-
-  function closeLeadDetailPage(syncHistory = true) {
+  function closeUserDetail() {
+    document.getElementById('user-detail-overlay').style.display = 'none';
     currentDetailRowIndex = null;
-    // Refresh the list we came from
-    if (previousSectionId === 'all-leads-section') {
-      showSection('all-leads-section', null, false);
+    // Refresh current visible list to reflect any changes
+    if (document.getElementById('all-leads-section').classList.contains('active')) {
       fetchAllLeads(document.querySelector('#al-pagination .active') ? parseInt(document.querySelector('#al-pagination .active').textContent) : 1);
-    } else if (previousSectionId === 'today-calls-section') {
-      showSection('today-calls-section', null, false);
+    } else if (document.getElementById('today-calls-section').classList.contains('active')) {
       fetchTodayCalls(document.querySelector('#tc-pagination .active') ? parseInt(document.querySelector('#tc-pagination .active').textContent) : 1);
-    } else if (previousSectionId === 'client-detail-overlay') {
-      // came from inside client detail — just go back
-      showSection('clients-section', null, false);
-    } else {
-      showSection(previousSectionId || 'dashboard-section', null, false);
-    }
-    if (syncHistory && history.state && history.state.section === 'lead-detail-section') {
-      history.back();
-    }
-  }
-
-  // Stub for old overlay close — replaced by closeLeadDetailPage
-  function closeUserDetail(refreshLists = true, syncHistory = true) {
-    if (getActiveSectionId() === 'lead-detail-section') {
-      closeLeadDetailPage(syncHistory);
     }
   }
 
   function renderUserDetail(user) {
-    document.getElementById('ld-page-title').textContent = user.name;
-    // Store name+clientRow on the page section element
-    const pageTitle = document.getElementById('ld-page-title');
-    pageTitle.setAttribute('data-original-name', user.name);
-    pageTitle.setAttribute('data-client-row', user.clientRowIndex);
+    document.getElementById('ud-name').textContent = user.name;
+    document.getElementById('ud-name').setAttribute('data-original-name', user.name);
+    document.getElementById('ud-name').setAttribute('data-client-row', user.clientRowIndex);
+    
+    // Add input field logic for inline editing of name
+    const headerHtml = `
+      <input type="text" id="ud-edit-name" value="${user.name}" style="font-size: 24px; font-weight: 600; color: var(--primary); border: 1px solid transparent; background: transparent; width: 100%; max-width: 300px; padding: 4px; border-radius: 4px;" 
+        onfocus="this.style.border='1px solid var(--border)'; this.style.background='white';"
+        onblur="this.style.border='1px solid transparent'; this.style.background='transparent';">
+    `;
+    document.getElementById('ud-name').innerHTML = headerHtml;
     
     let convHtml = '';
     if (user.conversations && user.conversations.length > 0) {
@@ -782,47 +627,36 @@
     ).join('');
 
     const html = `
-      <div class="detail-summary">
-        <div>
-          <div class="detail-eyebrow">${user.clientType || 'New'} Lead</div>
-          <div style="margin-top:6px;">
-            <input type="text" id="ud-edit-name" class="detail-name-input" value="${user.name}" title="Click to edit name">
-            ${statusBadge(user.status)}
-          </div>
-          <div class="detail-primary" style="margin-top:8px;"><span class="material-icons">call</span><a href="tel:${user.phone}" style="color: var(--primary); text-decoration: none;">${user.phone}</a></div>
-        </div>
-        <div class="detail-chip">${user.contactAgainDate ? 'CAD ' + user.contactAgainDate : 'Enquiry ' + user.enquiryDate}</div>
-      </div>
-
       <div class="ud-meta-grid">
         <div class="ud-row">
           <div class="ud-label">City:</div>
           <div class="ud-value" id="disp-city" data-original-city="${user.city}">
-            <input type="text" id="ud-edit-city" class="detail-inline-input" value="${user.city}">
+            <input type="text" id="ud-edit-city" value="${user.city}" style="font-size: 15px; color: var(--text-dark); border: 1px solid transparent; background: transparent; padding: 2px 4px; width: 100%; border-radius: 4px;"
+            onfocus="this.style.border='1px solid var(--border)'; this.style.background='white';"
+            onblur="this.style.border='1px solid transparent'; this.style.background='transparent';">
           </div>
         </div>
+        <div class="ud-row"><div class="ud-label">Phone:</div><div class="ud-value" id="disp-phone"><a href="tel:${user.phone}" style="color: var(--primary); font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 5px;"><span class="material-icons" style="font-size: 16px;">call</span> ${user.phone}</a></div></div>
         <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
         <div class="ud-row"><div class="ud-label">Lead By:</div><div class="ud-value">${user.leadBy || 'N/A'}</div></div>
         <div class="ud-row"><div class="ud-label">Client Type:</div><div class="ud-value">${user.clientType || 'New'}</div></div>
         <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
-        <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${statusBadge(user.status)}</div></div>
+        <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${user.status || 'Pending'}</div></div>
         <div class="ud-row"><div class="ud-label">Branch:</div><div class="ud-value" id="disp-branch">${user.branch || 'N/A'}</div></div>
         <div class="ud-row"><div class="ud-label">Contact Again Date:</div><div class="ud-value" id="disp-cad">${user.contactAgainDate || 'None'}</div></div>
         <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value" id="disp-regid">${user.registrationId || 'None'}</div></div>
         ${user.arrivalStatus ? `<div class="ud-row"><div class="ud-label">Arrival Status:</div><div class="ud-value">${user.arrivalStatus}</div></div>` : ''}
       </div>
       
-      ${histHtml ? `<div class="detail-section"><div class="ud-section-title">Edit History</div>${histHtml}</div>` : ''}
+      ${histHtml ? `<div class="ud-section-title">Edit History</div>${histHtml}` : ''}
 
-      <div class="detail-section">
-        <div class="ud-section-title" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Conversations</span>
-          ${isCurrentUserAdmin ? `<button class="btn btn-outline" style="color: #e53935; border-color: #e53935; padding: 6px 12px; font-size: 12px;" onclick="handleDeleteLead(this)">Delete Lead</button>` : ''}
-        </div>
-        ${convHtml}
+      <div class="ud-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Conversations</span>
+        ${isCurrentUserAdmin ? `<button class="btn btn-outline" style="color: #e53935; border-color: #e53935; padding: 6px 12px; font-size: 12px;" onclick="handleDeleteLead(this)">Delete Lead</button>` : ''}
       </div>
+      ${convHtml}
 
-      <div class="update-box detail-section">
+      <div class="update-box">
         <div class="update-box-title">Add Note & Update Status</div>
         <div class="update-grid">
           <div class="form-group">
@@ -853,7 +687,7 @@
       </div>
     `;
     
-    document.getElementById('ld-page-body').innerHTML = html;
+    document.getElementById('ud-body').innerHTML = html;
     toggleDetailRegId(user.clientType); // Call once to initialize correctly
   }
 
@@ -885,7 +719,8 @@
       
       google.script.run
         .withSuccessHandler(function(response) {
-           closeLeadDetailPage();
+           closeUserDetail();
+           // Lists automatically refresh when user detail closes, see closeUserDetail logic
            alert('Lead deleted successfully');
         })
         .withFailureHandler(function(error) {
@@ -918,8 +753,7 @@
     // Name and City edits
     const nameInput = document.getElementById('ud-edit-name');
     const name = nameInput ? nameInput.value.trim() : null;
-    const pageTitle = document.getElementById('ld-page-title');
-    const originalName = pageTitle ? pageTitle.getAttribute('data-original-name') : null;
+    const originalName = document.getElementById('ud-name').getAttribute('data-original-name');
     
     const cityInput = document.getElementById('ud-edit-city');
     const city = cityInput ? cityInput.value.trim() : null;
@@ -939,8 +773,6 @@
     btn.disabled = true;
     btn.textContent = 'Saving...';
     
-    const clientRowFromPage = pageTitle ? pageTitle.getAttribute('data-client-row') : null;
-
     google.script.run
       .withSuccessHandler(function(response) {
         btn.disabled = false;
@@ -949,28 +781,31 @@
         
         // Update display text
         if(response.status) {
-          document.getElementById('disp-status').innerHTML = statusBadge(response.status);
+          document.getElementById('disp-status').textContent = response.status;
           document.getElementById('disp-status').setAttribute('data-original-status', response.status);
         }
         if(response.branch !== undefined) document.getElementById('disp-branch').textContent = response.branch || 'N/A';
         if(response.contactAgainDate !== undefined) document.getElementById('disp-cad').textContent = response.contactAgainDate || 'None';
         if(response.registrationId !== undefined) document.getElementById('disp-regid').textContent = response.registrationId || 'None';
-        if(response.name && pageTitle) {
-            pageTitle.setAttribute('data-original-name', response.name);
+        if(response.name) {
+            document.getElementById('ud-name').setAttribute('data-original-name', response.name);
         }
         if(response.city) {
             document.getElementById('disp-city').setAttribute('data-original-city', response.city);
         }
 
+        // Close and re-open to refresh the whole view (including edit history) 
+        // to keep it simple and ensure all DOM state (like input fields vs text) are accurately rebuilt.
         const cRow = currentDetailRowIndex;
-        openLeadDetailPage(cRow, false);
+        closeUserDetail();
+        setTimeout(() => openUserDetail(cRow), 100);
       })
       .withFailureHandler(function(error) {
         btn.disabled = false;
         btn.textContent = 'Update';
         alert('Error saving: ' + error.message);
       })
-      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity, clientRowFromPage, arrivalStatus);
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity, document.getElementById('ud-name').getAttribute('data-client-row'), arrivalStatus);
   }
 
   // --- Add Lead Flow (New vs Existing) ---
@@ -1114,62 +949,4 @@
       })
       .addCustomer(data);
   }
-
-  // --- Inactivity Detection & Session Keep-Alive ---
-  function clearInactivityTimers() {
-    if (inactivityWarningTimer) { clearTimeout(inactivityWarningTimer); inactivityWarningTimer = null; }
-    if (inactivityLogoutTimer)  { clearTimeout(inactivityLogoutTimer);  inactivityLogoutTimer  = null; }
-    const toast = document.getElementById('session-warning-toast');
-    if (toast) toast.style.display = 'none';
-  }
-
-  function startInactivityTimer() {
-    clearInactivityTimers();
-    if (!currentUser) return;
-
-    inactivityWarningTimer = setTimeout(function() {
-      const toast = document.getElementById('session-warning-toast');
-      if (toast) { toast.style.display = 'flex'; }
-    }, INACTIVITY_WARNING_MS);
-
-    inactivityLogoutTimer = setTimeout(function() {
-      const toast = document.getElementById('session-warning-toast');
-      if (toast) toast.style.display = 'none';
-      logout();
-    }, INACTIVITY_LOGOUT_MS);
-  }
-
-  function resetInactivityTimer() {
-    if (!currentUser) return;
-    startInactivityTimer();
-  }
-
-  function keepSessionAlive() {
-    // Hide warning and reset the timer
-    const toast = document.getElementById('session-warning-toast');
-    if (toast) toast.style.display = 'none';
-    // Ping the server to keep Google Apps Script session alive
-    google.script.run
-      .withSuccessHandler(function() { startInactivityTimer(); })
-      .withFailureHandler(function() { startInactivityTimer(); })
-      .ping();
-  }
-
-  // Attach activity listeners once the page loads
-  (function initActivityListeners() {
-    const events = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
-    let debounceTimer = null;
-    function onActivity() {
-      if (!currentUser) return;
-      if (debounceTimer) return; // debounce to avoid hammering
-      debounceTimer = setTimeout(function() {
-        debounceTimer = null;
-        resetInactivityTimer();
-      }, 1000);
-    }
-    events.forEach(function(evt) {
-      document.addEventListener(evt, onActivity, { passive: true });
-    });
-  })();
-
 </script>
