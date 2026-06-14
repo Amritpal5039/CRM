@@ -259,7 +259,9 @@
         datasets: [{
           label: 'Leads',
           data: data,
-          backgroundColor: bgColors
+          backgroundColor: bgColors,
+          borderWidth: 0,
+          borderRadius: 6
         }]
       },
       options: { 
@@ -267,10 +269,11 @@
         maintainAspectRatio: false, 
         plugins: {
           legend: { display: false },
-          title: { display: true, text: 'Lead Status Overview' }
+          title: { display: true, text: 'Lead Status Overview', font: { family: 'Inter', size: 16, weight: '600' }, color: '#1d1d1f' }
         },
         scales: { 
-          y: { beginAtZero: true, ticks: { stepSize: 1 } } 
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Inter' } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { ticks: { font: { family: 'Inter' } }, grid: { display: false } }
         } 
       }
     });
@@ -289,17 +292,21 @@
       data: {
         labels: labels,
         datasets: [
-          { label: 'Total Enquiries', data: totalData, borderColor: '#006A7F', backgroundColor: 'rgba(0,106,127,0.1)', fill: true, tension: 0.3 },
-          { label: 'Confirmed (With Reg ID)', data: confirmedWithRegData, borderColor: '#34c759', backgroundColor: 'rgba(52,199,89,0.1)', fill: true, tension: 0.3 }
+          { label: 'Total Enquiries', data: totalData, borderColor: '#006A7F', backgroundColor: 'rgba(0,106,127,0.1)', fill: true, tension: 0.4, borderWidth: 3, pointBackgroundColor: '#006A7F' },
+          { label: 'Confirmed (With Reg ID)', data: confirmedWithRegData, borderColor: '#34c759', backgroundColor: 'rgba(52,199,89,0.1)', fill: true, tension: 0.4, borderWidth: 3, pointBackgroundColor: '#34c759' }
         ]
       },
       options: { 
         responsive: true, 
         maintainAspectRatio: false, 
         plugins: {
-          title: { display: true, text: 'Enquiries vs Confirmed (Reg) Trend' }
+          title: { display: true, text: 'Enquiries vs Confirmed (Reg) Trend', font: { family: 'Inter', size: 16, weight: '600' }, color: '#1d1d1f' },
+          legend: { labels: { font: { family: 'Inter' } } }
         },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Inter' } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { ticks: { font: { family: 'Inter' } }, grid: { display: false } }
+        }
       }
     });
   }
@@ -318,21 +325,24 @@
     if (sourceChartInstance) sourceChartInstance.destroy();
 
     sourceChartInstance = new Chart(ctx, {
-      type: 'pie',
+      type: 'doughnut',
       data: {
         labels: labels,
         datasets: [{
           data: data,
-          backgroundColor: bgColors.slice(0, labels.length)
+          backgroundColor: bgColors.slice(0, labels.length),
+          borderWidth: 2,
+          borderColor: '#ffffff'
         }]
       },
       options: { 
         responsive: true, 
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom' },
-          title: { display: true, text: 'Lead Sources' }
-        }
+          legend: { position: 'bottom', labels: { font: { family: 'Inter' }, padding: 20 } },
+          title: { display: true, text: 'Lead Sources', font: { family: 'Inter', size: 16, weight: '600' }, color: '#1d1d1f' }
+        },
+        cutout: '60%'
       }
     });
   }
@@ -347,21 +357,24 @@
     if (leadByChartInstance) leadByChartInstance.destroy();
 
     leadByChartInstance = new Chart(ctx, {
-      type: 'pie',
+      type: 'doughnut',
       data: {
         labels: labels,
         datasets: [{
           data: data,
-          backgroundColor: bgColors.slice(0, labels.length)
+          backgroundColor: bgColors.slice(0, labels.length),
+          borderWidth: 2,
+          borderColor: '#ffffff'
         }]
       },
       options: { 
         responsive: true, 
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom' },
-          title: { display: true, text: 'Leads by Medium' }
-        }
+          legend: { position: 'bottom', labels: { font: { family: 'Inter' }, padding: 20 } },
+          title: { display: true, text: 'Leads by Medium', font: { family: 'Inter', size: 16, weight: '600' }, color: '#1d1d1f' }
+        },
+        cutout: '60%'
       }
     });
   }
