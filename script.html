@@ -160,12 +160,19 @@
 
   function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    // On mobile, toggle 'open' class for off-canvas menu
+    const overlay = document.getElementById('sidebar-overlay');
+    const toggleIcon = document.getElementById('toggle-icon');
+
+    // On mobile, toggle 'open' class for off-canvas menu and overlay
     if (window.innerWidth <= 768) {
       sidebar.classList.toggle('open');
+      if (overlay) overlay.classList.toggle('open');
     } else {
       // On desktop, toggle 'collapsed' class
-      sidebar.classList.toggle('collapsed');
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      if (toggleIcon) {
+        toggleIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
+      }
     }
   }
 
@@ -188,6 +195,8 @@
     // Auto-close sidebar on mobile after clicking a link
     if (window.innerWidth <= 768) {
       document.getElementById('sidebar').classList.remove('open');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (overlay) overlay.classList.remove('open');
     }
   }
 
