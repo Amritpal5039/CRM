@@ -3,7 +3,7 @@
   <head>
     <base target="_top">
     <?!= include('styles'); ?>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -30,33 +30,39 @@
 
     <!-- Main App Container -->
     <div id="app-container" class="app-container" style="display: none;">
+      <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
       <!-- Sidebar -->
       <nav class="sidebar" id="sidebar">
-        <div class="logo">
-          <img src="https://res.cloudinary.com/ddrhe6ojc/image/upload/v1780403525/logo_wkzaml.png" alt="Logo" style="max-width: 100%; max-height: 50px; margin-bottom: 10px;" onerror="this.style.display='none'">
-          <h2>Customer Care</h2>
-          <div id="logged-in-user" style="font-size: 12px; color: var(--text-light); margin-top: 5px;"></div>
+        <div class="sidebar-header">
+          <div class="logo-container">
+            <img src="https://res.cloudinary.com/ddrhe6ojc/image/upload/v1780403525/logo_wkzaml.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+            <div class="logo-text">
+              <h2>Customer Care</h2>
+              <div id="logged-in-user"></div>
+            </div>
+          </div>
+          <button class="sidebar-toggle btn btn-outline" id="desktop-sidebar-toggle" onclick="toggleSidebar()">
+            <span class="material-icons" id="toggle-icon">menu</span>
+          </button>
         </div>
-        <button class="sidebar-toggle btn btn-outline" onclick="toggleSidebar()">
-          <span class="material-icons">menu</span>
-        </button>
+
         <ul class="nav-links">
-          <li class="active" onclick="showSection('dashboard-section', this); fetchDashboardStats();">
+          <li class="active" onclick="showSection('dashboard-section', this); fetchDashboardStats();" data-tooltip="Dashboard">
             <span class="material-icons">dashboard</span> <span class="link-text">Dashboard</span>
           </li>
-          <li onclick="showSection('all-leads-section', this); fetchAllLeads(1);">
+          <li onclick="showSection('all-leads-section', this); fetchAllLeads(1);" data-tooltip="See All Leads">
             <span class="material-icons">list_alt</span> <span class="link-text">See All Leads</span>
           </li>
-          <li onclick="showSection('clients-section', this); fetchAllClients(1);">
+          <li onclick="showSection('clients-section', this); fetchAllClients(1);" data-tooltip="Clients Database">
             <span class="material-icons">people</span> <span class="link-text">Clients Database</span>
           </li>
-          <li onclick="showSection('add-data-section', this)">
+          <li onclick="showSection('add-data-section', this)" data-tooltip="Add New Lead">
             <span class="material-icons">add_circle</span> <span class="link-text">Add New Lead</span>
           </li>
-          <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
+          <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);" data-tooltip="Today Calls">
             <span class="material-icons">contact_phone</span> <span class="link-text">Today Calls</span>
           </li>
-          <li onclick="logout()" style="margin-top: auto;">
+          <li onclick="logout()" style="margin-top: auto;" data-tooltip="Logout">
             <span class="material-icons">logout</span> <span class="link-text">Logout</span>
           </li>
         </ul>
