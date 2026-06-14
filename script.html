@@ -398,24 +398,29 @@
     }
 
     let html = '';
-    clients.forEach(client => {
-      let regIdHtml = client.regId ? `<span><span class="material-icons">badge</span> ${client.regId}</span>` : '';
+    clients.forEach((client, index) => {
+      let regIdHtml = client.regId ? `<span class="meta-tag"><span class="material-icons">badge</span> ${client.regId}</span>` : '';
+
+      const delay = Math.min(index * 0.05, 0.5);
+
       html += `
-        <div class="lead-item">
+        <div class="lead-item slide-up" style="animation-delay: ${delay}s; opacity: 0;">
           <div class="lead-info">
-            <span class="lead-name" onclick="openClientDetail('${client.clientId}')">${client.name}</span>
-            <div class="lead-meta">
-              <span><span class="material-icons">phone</span> <a href="tel:${client.phone}" style="color: inherit; text-decoration: none;">${client.phone}</a></span>
-              <span><span class="material-icons">location_on</span> ${client.city}</span>
+            <div style="margin-bottom: 12px;">
+              <span class="lead-name" onclick="openClientDetail('${client.clientId}')">${client.name}</span>
+            </div>
+            <div class="lead-meta" style="margin-bottom: 12px;">
+              <span class="meta-tag"><span class="material-icons">phone</span> <a href="tel:${client.phone}" style="color: inherit; text-decoration: none;">${client.phone}</a></span>
+              <span class="meta-tag"><span class="material-icons">location_on</span> ${client.city}</span>
               ${regIdHtml}
             </div>
-            <div class="lead-count">
-              <strong>Total Leads Generated:</strong> ${client.leadCount}
+            <div class="lead-count" style="background: var(--secondary); display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--primary); font-weight: 600;">
+              Total Leads Generated: ${client.leadCount}
             </div>
           </div>
-          <div class="lead-actions" style="margin-left: 15px;">
-            <a href="tel:${client.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 50%;">
-              <span class="material-icons" style="font-size: 20px; margin: 0;">call</span>
+          <div class="lead-actions" style="margin-left: 20px;">
+            <a href="tel:${client.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 12px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0, 106, 127, 0.2); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 14px rgba(0, 106, 127, 0.3)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 10px rgba(0, 106, 127, 0.2)';">
+              <span class="material-icons" style="font-size: 22px; margin: 0;">call</span>
             </a>
           </div>
         </div>
@@ -469,24 +474,26 @@
     let leadsHtml = '';
     if (data.leads && data.leads.length > 0) {
       data.leads.forEach((lead, idx) => {
-        let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
-        const dateHtml = leadDateHtml(lead);
+        let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span class="meta-tag"><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
+        const dateHtml = `<span class="meta-tag">${leadDateHtml(lead)}</span>`;
         leadsHtml += `
-          <div class="lead-item" style="cursor: pointer; margin-bottom: 10px;" onclick="openUserDetail(${lead.rowIndex})">
+          <div class="lead-item" style="cursor: pointer; margin-bottom: 12px;" onclick="openUserDetail(${lead.rowIndex})">
             <div class="lead-info">
-              <span class="lead-name" style="font-size: 16px;">Lead ${data.leads.length - idx} <span style="font-size: 12px; color: var(--text-light); font-weight: normal;">(${lead.clientType})</span></span>
-              <div class="lead-meta" style="margin-top: 5px;">
-                ${dateHtml}
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="lead-name" style="font-size: 16px; margin: 0;">Lead ${data.leads.length - idx} <span style="font-size: 12px; color: var(--text-light); font-weight: normal;">(${lead.clientType})</span></span>
                 ${statusBadge(lead.status)}
-                <span><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
+              </div>
+              <div class="lead-meta" style="margin-bottom: 8px;">
+                ${dateHtml}
+                <span class="meta-tag"><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
                 ${arrivalHtml}
               </div>
-              <div class="lead-note">
-                <strong>Latest Note:</strong> ${lead.latestConversation}
+              <div class="lead-note" style="margin-top: 4px; font-size: 13px;">
+                <strong>Note:</strong> ${lead.latestConversation || '<span style="font-style: italic; color: #a1a1a6;">None</span>'}
               </div>
             </div>
-            <div class="lead-actions">
-               <span class="material-icons" style="color: var(--primary);">chevron_right</span>
+            <div class="lead-actions" style="margin-left: 15px;">
+               <span class="material-icons" style="color: var(--primary); background: var(--secondary); border-radius: 50%; padding: 4px;">chevron_right</span>
             </div>
           </div>
         `;
@@ -614,30 +621,40 @@
     }
 
     let html = '';
-    leads.forEach(lead => {
-      let regIdHtml = lead.registrationId ? `<span><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
-      let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
-      const dateHtml = leadDateHtml(lead);
+    leads.forEach((lead, index) => {
+      let regIdHtml = lead.registrationId ? `<span class="meta-tag"><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
+      let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span class="meta-tag"><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
+      const dateHtml = `<span class="meta-tag">${leadDateHtml(lead)}</span>`;
+
+      // Calculate animation delay for staggered entrance
+      const delay = Math.min(index * 0.05, 0.5);
+
       html += `
-        <div class="lead-item">
+        <div class="lead-item slide-up" style="animation-delay: ${delay}s; opacity: 0;">
           <div class="lead-info">
-            <span class="lead-name" onclick="openUserDetail(${lead.rowIndex})">${lead.name}</span>
-            <div class="lead-meta">
-              <span><span class="material-icons">phone</span> <a href="tel:${lead.phone}" style="color: inherit; text-decoration: none;">${lead.phone}</a></span>
-              <span><span class="material-icons">location_on</span> ${lead.city}</span>
-              ${dateHtml}
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <span class="lead-name" onclick="openUserDetail(${lead.rowIndex})">${lead.name}</span>
               ${statusBadge(lead.status)}
+            </div>
+            <div class="lead-meta" style="margin-bottom: 12px;">
+              <span class="meta-tag"><span class="material-icons">phone</span> <a href="tel:${lead.phone}" style="color: inherit; text-decoration: none;">${lead.phone}</a></span>
+              <span class="meta-tag"><span class="material-icons">location_on</span> ${lead.city}</span>
+              ${dateHtml}
               ${regIdHtml}
               ${arrivalHtml}
             </div>
-            <div class="lead-note">
-              <strong>Latest Note:</strong> ${lead.latestConversation}
+            <div class="lead-note" style="background: var(--bg-light); padding: 10px 14px; border-radius: 8px; margin-top: 0; border-left: 3px solid var(--border);">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); display: block; margin-bottom: 4px; font-weight: 600;">Latest Note</span>
+              ${lead.latestConversation || '<span style="font-style: italic; color: #a1a1a6;">No conversation history.</span>'}
             </div>
           </div>
-          <div class="lead-actions" style="margin-left: 15px;">
-            <a href="tel:${lead.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 50%;">
-              <span class="material-icons" style="font-size: 20px; margin: 0;">call</span>
+          <div class="lead-actions" style="margin-left: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <a href="tel:${lead.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 12px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0, 106, 127, 0.2); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 14px rgba(0, 106, 127, 0.3)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 10px rgba(0, 106, 127, 0.2)';">
+              <span class="material-icons" style="font-size: 22px; margin: 0;">call</span>
             </a>
+            <button onclick="openUserDetail(${lead.rowIndex})" class="btn btn-outline" style="display: inline-flex; align-items: center; justify-content: center; padding: 12px; border-radius: 50%; border: 1px solid var(--border); background: white;">
+              <span class="material-icons" style="font-size: 22px; margin: 0; color: var(--text-light);">edit</span>
+            </button>
           </div>
         </div>
       `;
@@ -975,9 +992,17 @@
 
   // --- Add Lead Flow (New vs Existing) ---
   function resetAddDataFlow() {
-    document.getElementById('phone-check-container').style.display = 'block';
-    document.getElementById('existing-client-container').style.display = 'none';
-    document.getElementById('new-client-container').style.display = 'none';
+    const phoneCheck = document.getElementById('phone-check-container');
+    const existingClient = document.getElementById('existing-client-container');
+    const newClient = document.getElementById('new-client-container');
+
+    existingClient.style.display = 'none';
+    existingClient.classList.remove('slide-up');
+    newClient.style.display = 'none';
+    newClient.classList.remove('slide-up');
+
+    phoneCheck.style.display = 'block';
+    phoneCheck.classList.add('fade-in');
     
     document.getElementById('check-phone').value = '';
     document.getElementById('verify-message').style.display = 'none';
@@ -1006,11 +1031,15 @@
         btn.disabled = false;
         btn.textContent = 'Check Client';
         
-        document.getElementById('phone-check-container').style.display = 'none';
+        const phoneCheck = document.getElementById('phone-check-container');
+        phoneCheck.style.display = 'none';
+        phoneCheck.classList.remove('fade-in');
         
         if (response.exists) {
           const c = response.client;
-          document.getElementById('existing-client-container').style.display = 'block';
+          const existingContainer = document.getElementById('existing-client-container');
+          existingContainer.style.display = 'block';
+          existingContainer.classList.add('slide-up');
           document.getElementById('existing-clientId').value = c.clientId;
           document.getElementById('existing-client-details').innerHTML = `
             <strong>Name:</strong> ${c.name} <br>
@@ -1023,7 +1052,9 @@
           document.getElementById('ex-enquiryDate').valueAsDate = new Date();
           
         } else {
-          document.getElementById('new-client-container').style.display = 'block';
+          const newContainer = document.getElementById('new-client-container');
+          newContainer.style.display = 'block';
+          newContainer.classList.add('slide-up');
           document.getElementById('phone').value = phone; // Pre-fill phone
           document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
         }
