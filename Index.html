@@ -41,19 +41,19 @@
           <span class="material-icons">menu</span>
         </button>
         <ul class="nav-links">
-          <li class="active" onclick="showSection('dashboard-section', this); fetchDashboardStats();">
+          <li class="active" data-section="dashboard-section" onclick="showSection('dashboard-section', this); fetchDashboardStats();">
             <span class="material-icons">dashboard</span> <span class="link-text">Dashboard</span>
           </li>
-          <li onclick="showSection('all-leads-section', this); fetchAllLeads(1);">
+          <li data-section="all-leads-section" onclick="showSection('all-leads-section', this); fetchAllLeads(1);">
             <span class="material-icons">list_alt</span> <span class="link-text">See All Leads</span>
           </li>
-          <li onclick="showSection('clients-section', this); fetchAllClients(1);">
+          <li data-section="clients-section" onclick="showSection('clients-section', this); fetchAllClients(1);">
             <span class="material-icons">people</span> <span class="link-text">Clients Database</span>
           </li>
-          <li onclick="showSection('add-data-section', this)">
+          <li data-section="add-data-section" onclick="showSection('add-data-section', this)">
             <span class="material-icons">add_circle</span> <span class="link-text">Add New Lead</span>
           </li>
-          <li onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
+          <li data-section="today-calls-section" onclick="showSection('today-calls-section', this); fetchTodayCalls(1);">
             <span class="material-icons">contact_phone</span> <span class="link-text">Today Calls</span>
           </li>
           <li onclick="logout()" style="margin-top: auto;">
@@ -61,6 +61,9 @@
           </li>
         </ul>
       </nav>
+
+      <!-- Mobile sidebar backdrop - click to close -->
+      <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
       <div class="mobile-header">
          <button class="mobile-menu-btn" onclick="toggleSidebar()">
@@ -95,14 +98,6 @@
               <h3>Overall Conversion</h3>
               <div id="stat-conv-overall" class="stat-value text-success">0%</div>
             </div>
-            <div class="stat-card">
-              <h3>New Client Conversion</h3>
-              <div id="stat-conv-new" class="stat-value" style="color: #4285f4;">0%</div>
-            </div>
-            <div class="stat-card">
-              <h3>Returning Re-engagement</h3>
-              <div id="stat-conv-returning" class="stat-value" style="color: #fbbc04;">0%</div>
-            </div>
             <div class="stat-card" style="grid-column: span 2;">
               <h3>Top 5 Lead Cities</h3>
               <ul id="stat-city-lead-list" style="list-style: none; text-align: left; font-size: 16px; color: var(--text-dark); display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 15px;">
@@ -123,6 +118,9 @@
             </div>
             <div class="chart-container card">
               <canvas id="leadByChart"></canvas>
+            </div>
+            <div class="chart-container card" style="grid-column: span 2;">
+              <canvas id="branchChart"></canvas>
             </div>
           </div>
         </section>
@@ -394,32 +392,28 @@
 
         <!-- Lead Detail Section (Full Page, no overlay) -->
         <section id="lead-detail-section" class="content-section">
-          <button class="back-btn" id="lead-detail-back-btn" onclick="closeLeadDetailPage()">
+          <button class="back-btn" onclick="closeLeadDetailPage()">
             <span class="material-icons">arrow_back</span> Back
           </button>
-          <h1 id="ld-page-title">Lead Details</h1>
           <div id="ld-page-body">
             <div class="loading">Loading details...</div>
           </div>
         </section>
 
+        <!-- Client Detail Section (Full Page, no overlay) -->
+        <section id="client-detail-section" class="content-section">
+          <button class="back-btn" onclick="closeClientDetailPage()">
+            <span class="material-icons">arrow_back</span> Back
+          </button>
+          <div id="cd-page-body">
+            <div class="loading">Loading client details...</div>
+          </div>
+        </section>
+
       </main>
 
-      <!-- Client Detail View Overlay -->
-      <div id="client-detail-overlay" class="detail-overlay" style="display: none;">
-        <div class="detail-container">
-          <div class="detail-header">
-            <h2 id="cd-name" style="color: var(--primary); margin: 0;"></h2>
-            <button class="btn btn-outline btn-close" onclick="closeClientDetail()">Close</button>
-          </div>
-          
-          <div class="detail-body" id="cd-body">
-            <!-- Populated via JS -->
-          </div>
-        </div>
-      </div>
-
       <!-- Session Warning Toast -->
+
       <div id="session-warning-toast">
         <span>⏱ Your session will expire soon due to inactivity.</span>
         <button onclick="keepSessionAlive()">Stay Logged In</button>

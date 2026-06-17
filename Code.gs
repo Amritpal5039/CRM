@@ -169,13 +169,18 @@ function deleteLead(rowIndex, username) {
     throw new Error("Unauthorized: Only users with the Admin role can delete leads.");
   }
   
+  const rIndex = parseInt(rowIndex, 10);
+  if (isNaN(rIndex)) {
+    throw new Error("Invalid row index.");
+  }
+
   const sheet = getLeadsSheet();
   // Ensure we don't delete headers
-  if (rowIndex <= 1) {
+  if (rIndex <= 1) {
     throw new Error("Cannot delete header row.");
   }
   
-  sheet.deleteRow(rowIndex);
+  sheet.deleteRow(rIndex);
   return { success: true, message: "Lead deleted successfully." };
 }
 
@@ -626,8 +631,12 @@ function getClientDetailsWithLeads(clientId) {
 
 // Fetch single user by row index
 function getUserDetails(leadRowIndex) {
+  const rIndex = parseInt(leadRowIndex, 10);
+  if (isNaN(rIndex)) {
+    throw new Error("Invalid lead row index.");
+  }
   const leadsSheet = getLeadsSheet();
-  const leadRow = leadsSheet.getRange(leadRowIndex, 1, 1, 10).getValues()[0];
+  const leadRow = leadsSheet.getRange(rIndex, 1, 1, 11).getValues()[0];
   
   const clientId = leadRow[1];
   
@@ -704,19 +713,28 @@ function addConversation(
   clientRowIndex,
   arrivalStatus
 ) {
+  const rIndex = parseInt(leadRowIndex, 10);
+  const cIndex = parseInt(clientRowIndex, 10);
+  if (isNaN(rIndex)) {
+    throw new Error("Invalid lead row index.");
+  }
+  if (isNaN(cIndex)) {
+    throw new Error("Invalid client row index.");
+  }
+
   const leadsSheet = getLeadsSheet();
   const clientsSheet = getClientsSheet();
 
   // Update Lead
-  if (status) leadsSheet.getRange(leadRowIndex, 5).setValue(status);
-  if (branch !== undefined) leadsSheet.getRange(leadRowIndex, 6).setValue(branch);
-  if (contactAgainDate !== undefined) leadsSheet.getRange(leadRowIndex, 7).setValue(contactAgainDate);
-  if (arrivalStatus !== undefined) leadsSheet.getRange(leadRowIndex, 11).setValue(arrivalStatus);
+  if (status) leadsSheet.getRange(rIndex, 5).setValue(status);
+  if (branch !== undefined) leadsSheet.getRange(rIndex, 6).setValue(branch);
+  if (contactAgainDate !== undefined) leadsSheet.getRange(rIndex, 7).setValue(contactAgainDate);
+  if (arrivalStatus !== undefined) leadsSheet.getRange(rIndex, 11).setValue(arrivalStatus);
   
   // Update Client
-  if (registrationId !== undefined) clientsSheet.getRange(clientRowIndex, 5).setValue(registrationId);
-  if (name !== undefined) clientsSheet.getRange(clientRowIndex, 2).setValue(name);
-  if (city !== undefined) clientsSheet.getRange(clientRowIndex, 3).setValue(city);
+  if (registrationId !== undefined) clientsSheet.getRange(cIndex, 5).setValue(registrationId);
+  if (name !== undefined) clientsSheet.getRange(cIndex, 2).setValue(name);
+  if (city !== undefined) clientsSheet.getRange(cIndex, 3).setValue(city);
 
   const dateStr = Utilities.formatDate(
     new Date(),
@@ -724,7 +742,7 @@ function addConversation(
     "yyyy-MM-dd HH:mm:ss",
   );
 
-  const convCell = leadsSheet.getRange(leadRowIndex, 8); // Column H
+  const convCell = leadsSheet.getRange(rIndex, 8); // Column H
   let conversations = [];
   try {
     const val = convCell.getValue();
@@ -741,7 +759,7 @@ function addConversation(
   }
 
   // Handle Edit History on Client Record
-  const historyCell = clientsSheet.getRange(clientRowIndex, 8); // Column H
+  const historyCell = clientsSheet.getRange(cIndex, 8); // Column H
   let editHistory = [];
   try {
     const hVal = historyCell.getValue();
@@ -808,9 +826,10 @@ function getDashboardStats(startDateStr, endDateStr) {
     returningLeadsReengaged: 0,
     confirmedWithReg: 0,
     confirmedWithoutReg: 0,
-    confirmedReached: 0,
-    confirmedNotReached: 0,
+    confirmedReached: 0,      // Reached: both New (with reg) AND Returning (reached)
+    confirmedNotReached: 0,   // Not Reached: both New and Returning
     confirmedClosed: 0,
+    otherGroup: 0,            // Pending + FollowUp + NotInt + NoAns + Dropped (for bar chart)
     pending: 0,
     followUp: 0,
     notInterested: 0,
@@ -822,6 +841,7 @@ function getDashboardStats(startDateStr, endDateStr) {
     timeline: {},
     sources: {},
     leadBy: {},
+    branchStats: {},
     citiesLead: {},
     citiesConv: {}
   };
@@ -856,6 +876,8 @@ function getDashboardStats(startDateStr, endDateStr) {
       if (city === "") city = "unknown";
       
       let isConverted = false;
+      // A lead is "reached" if New+confirmed+arrivalStatus=reached, OR Returning+confirmed+arrivalStatus=reached
+      const isReached = statusStr === "confirmed" && arrivalStatusStr === "reached";
 
       if (clientType === "New") {
         stats.newLeadsTotal++;
@@ -865,7 +887,7 @@ function getDashboardStats(startDateStr, endDateStr) {
         }
       } else if (clientType === "Returning") {
         stats.returningLeadsTotal++;
-        if (statusStr === "confirmed" && arrivalStatusStr === "reached") {
+        if (isReached) {
           stats.returningLeadsReengaged++;
           isConverted = true;
         }
@@ -875,42 +897,48 @@ function getDashboardStats(startDateStr, endDateStr) {
       if (city) {
         if (!stats.citiesLead[city]) stats.citiesLead[city] = { count: 0, originalName: cityRaw };
         stats.citiesLead[city].count++;
-        // Maintain the longest/most formatted original name for display
         if (cityRaw.length > stats.citiesLead[city].originalName.length) {
           stats.citiesLead[city].originalName = cityRaw;
         }
-        
         if (isConverted) {
           if (!stats.citiesConv[city]) stats.citiesConv[city] = 0;
           stats.citiesConv[city]++;
         }
       }
 
-      // Status breakdown
+      // Status breakdown — unified reached bucket for both New and Returning
       if (statusStr === "confirmed") {
-        if (clientType === "New") {
-          if (regId !== "") stats.confirmedWithReg++;
-          else stats.confirmedWithoutReg++;
+        if (arrivalStatusStr === "reached") {
+          // Both New (with reg) AND Returning confirmed+reached count here
+          stats.confirmedReached++;
+          if (clientType === "New" && regId !== "") stats.confirmedWithReg++; // keep old counter for compat
+        } else if (arrivalStatusStr === "not reached") {
+          stats.confirmedNotReached++;
+        } else if (arrivalStatusStr === "closed") {
+          stats.confirmedClosed++;
         } else {
-          if (arrivalStatusStr === "reached") stats.confirmedReached++;
-          else if (arrivalStatusStr === "not reached") stats.confirmedNotReached++;
-          else if (arrivalStatusStr === "closed") stats.confirmedClosed++;
-          else stats.confirmedWithoutReg++; // Fallback if returning client has no arrival status yet
+          // New with no arrival status yet, or returning with no arrival — fallback
+          stats.confirmedWithoutReg++;
         }
       } else if (statusStr === "pending") {
         stats.pending++;
+        stats.otherGroup++;
       } else if (statusStr === "follow up") {
         stats.followUp++;
+        stats.otherGroup++;
       } else if (statusStr === "not interested") {
         stats.notInterested++;
+        stats.otherGroup++;
       } else if (statusStr === "closed") {
         stats.closed++;
       } else if (statusStr === "call not answered") {
         stats.callNotAnswered++;
+        stats.otherGroup++;
       } else if (statusStr === "general inquiry") {
         stats.generalInquiry++;
       } else if (statusStr === "call dropped") {
         stats.callDropped++;
+        stats.otherGroup++;
       } else if (statusStr === "patient will contact") {
         stats.patientWillContact++;
       }
@@ -923,11 +951,18 @@ function getDashboardStats(startDateStr, endDateStr) {
       if (!stats.leadBy[leadByStr]) stats.leadBy[leadByStr] = 0;
       stats.leadBy[leadByStr]++;
 
-      // Timeline breakdown
-      if (!stats.timeline[dStr]) stats.timeline[dStr] = { total: 0, confirmedWithReg: 0 };
+      // Branch breakdown (only count leads that have a branch assigned)
+      const branchStr = String(row[5] || "").trim();
+      if (branchStr) {
+        if (!stats.branchStats[branchStr]) stats.branchStats[branchStr] = 0;
+        stats.branchStats[branchStr]++;
+      }
+
+      // Timeline breakdown — track total and all confirmed+reached (New + Returning)
+      if (!stats.timeline[dStr]) stats.timeline[dStr] = { total: 0, reached: 0 };
       stats.timeline[dStr].total++;
-      if (statusStr === "confirmed" && regId !== "") {
-        stats.timeline[dStr].confirmedWithReg++;
+      if (isReached) {
+        stats.timeline[dStr].reached++;
       }
     }
   });
@@ -936,7 +971,7 @@ function getDashboardStats(startDateStr, endDateStr) {
   Object.keys(stats.timeline).sort().forEach((k) => { sortedTimeline[k] = stats.timeline[k]; });
   
   stats.timeline = sortedTimeline;
-  stats.confirmed = stats.confirmedWithReg + stats.confirmedReached + stats.confirmedNotReached + stats.confirmedClosed + stats.confirmedWithoutReg;
+  stats.confirmed = stats.confirmedReached + stats.confirmedNotReached + stats.confirmedClosed + stats.confirmedWithoutReg;
   
   stats.overallConversionRate = stats.total > 0 ? (((stats.newLeadsConverted + stats.returningLeadsReengaged) / stats.total) * 100).toFixed(2) : "0.00";
   stats.newClientConversionRate = stats.newLeadsTotal > 0 ? ((stats.newLeadsConverted / stats.newLeadsTotal) * 100).toFixed(2) : "0.00";

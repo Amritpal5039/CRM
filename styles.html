@@ -71,8 +71,28 @@
   .sidebar.collapsed .nav-links li { justify-content: center; padding: 15px 0; }
   .sidebar.collapsed .nav-links .material-icons { margin-right: 0; }
   
-  .sidebar-toggle { position: absolute; top: 15px; right: -15px; background: white; border-radius: 50%; padding: 5px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 20; color: var(--text-light); }
-  .sidebar-toggle:hover { color: var(--primary); }
+  .sidebar-toggle {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    background: var(--bg-light); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; color: var(--text-light);
+    transition: all 0.2s; margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+  .sidebar-toggle:hover { background: var(--secondary); color: var(--primary); border-color: var(--primary); }
+  .sidebar.collapsed .sidebar-toggle { margin: 10px auto 0; }
+
+  /* Mobile sidebar backdrop */
+  #sidebar-backdrop {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 25;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (max-width: 768px) {
+    #sidebar-backdrop.active { display: block; }
+  }
 
   .logo { padding: 20px; border-bottom: 1px solid var(--border); color: var(--primary); text-align: center; overflow: hidden; transition: 0.3s; }
   .nav-links { list-style: none; padding: 10px 0; display: flex; flex-direction: column; flex-grow: 1; overflow-y: auto; }
@@ -196,36 +216,29 @@
   .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
   .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Lead Detail — Full Page Section (replaces overlay) */
-  /* This is now a content-section like all others — no overlay, no backdrop */
-  #lead-detail-section {
+  /* Lead & Client Detail — Full Page Sections */
+  #lead-detail-section,
+  #client-detail-section {
     display: none;
     background-color: var(--bg-light);
   }
-  #lead-detail-section.active {
+  #lead-detail-section.active,
+  #client-detail-section.active {
     display: block;
     animation: fadeIn 0.3s;
   }
   
-  /* Legacy overlays (client detail still uses overlay) */
+  /* Legacy overlay (kept for any future use, but not currently active) */
   .detail-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    /* Solid opaque background — fixes white-screen on Safari/WebKit */
     background: #f5f5f7;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    /* overflow must be set to scroll on iOS, not hidden */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  /* Animate overlay entrance */
-  .detail-overlay.is-visible {
-    animation: fadeInModal 0.3s forwards;
-  }
-  @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
-  
   .detail-container {
     max-width: 1000px;
     margin: 0 auto;
@@ -233,14 +246,10 @@
     padding: 40px;
     display: flex;
     flex-direction: column;
-    /* Do NOT use max-height:100vh here — let the parent scroll */
     min-height: 100%;
   }
-  @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   @media (max-width: 768px) {
     .detail-container { padding: 10px; }
-    .detail-header { margin-bottom: 15px; padding-bottom: 10px; }
-    .detail-body { padding: 18px; }
   }
   
   .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 16px; }

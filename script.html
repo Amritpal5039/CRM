@@ -39,8 +39,8 @@
     if (section === 'lead-detail-section' && currentDetailRowIndex) {
       return { view: 'app', section: section, rowIndex: currentDetailRowIndex };
     }
-    if (document.getElementById('client-detail-overlay').style.display === 'flex' && currentClientDetailId) {
-      return { view: 'app', section: section, overlay: 'client', clientId: currentClientDetailId };
+    if (section === 'client-detail-section' && currentClientDetailId) {
+      return { view: 'app', section: section, clientId: currentClientDetailId };
     }
     return { view: 'app', section: section };
   }
@@ -75,13 +75,14 @@
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-container').style.display = 'flex';
-    showSection(state.section || 'dashboard-section', null, false);
-    loadSectionData(state.section || 'dashboard-section');
 
-    if (state.overlay === 'client' && state.clientId) {
-      openClientDetail(state.clientId, false);
-    } else if (state.section === 'lead-detail-section' && state.rowIndex) {
+    if (state.section === 'lead-detail-section' && state.rowIndex) {
       openLeadDetailPage(state.rowIndex, false);
+    } else if (state.section === 'client-detail-section' && state.clientId) {
+      openClientDetail(state.clientId, false);
+    } else {
+      showSection(state.section || 'dashboard-section', null, false);
+      loadSectionData(state.section || 'dashboard-section');
     }
   }
 
@@ -125,13 +126,22 @@
           initAppHistory();
           startInactivityTimer(); // begin inactivity countdown
           
-          // Defaults for dashboard
-          const today = new Date();
-          const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-          document.getElementById('dash-end-date').valueAsDate = today;
-          document.getElementById('dash-start-date').valueAsDate = firstDay;
-          
-          fetchDashboardStats();
+          // Show/hide dashboard nav item based on admin status
+          const dashNav = document.querySelector('.nav-links li[data-section="dashboard-section"]');
+          if (dashNav) dashNav.style.display = response.isAdmin ? '' : 'none';
+
+          if (response.isAdmin) {
+            // Defaults for dashboard
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('dash-end-date').valueAsDate = today;
+            document.getElementById('dash-start-date').valueAsDate = firstDay;
+            fetchDashboardStats();
+          } else {
+            // Callers land on All Leads instead
+            showSection('all-leads-section', document.querySelector('.nav-links li[data-section="all-leads-section"]'), false);
+            fetchAllLeads(1);
+          }
         } else {
           setLoginMessage(response.message || 'Invalid credentials');
           btn.disabled = false;
@@ -160,16 +170,30 @@
 
   function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    // On mobile, toggle 'open' class for off-canvas menu
+    const backdrop = document.getElementById('sidebar-backdrop');
     if (window.innerWidth <= 768) {
-      sidebar.classList.toggle('open');
+      // Mobile: slide in/out with backdrop
+      const isOpen = sidebar.classList.toggle('open');
+      if (backdrop) backdrop.classList.toggle('active', isOpen);
     } else {
-      // On desktop, toggle 'collapsed' class
+      // Desktop: collapse/expand width
       sidebar.classList.toggle('collapsed');
     }
   }
 
+  function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('active');
+  }
+
   function showSection(sectionId, element, shouldPushState = true) {
+    // Guard: only admin can see the dashboard
+    if (sectionId === 'dashboard-section' && !isCurrentUserAdmin) {
+      sectionId = 'all-leads-section';
+      element = document.querySelector('.nav-links li[data-section="all-leads-section"]');
+    }
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
     
@@ -182,12 +206,20 @@
         li.classList.toggle('active', onclick.indexOf(sectionId) !== -1);
       });
     }
-    closeClientDetail(false);
+    
+    // Clean up IDs when navigating away to other main sections
+    if (sectionId !== 'client-detail-section' && sectionId !== 'lead-detail-section') {
+      currentClientDetailId = null;
+    }
+    if (sectionId !== 'lead-detail-section') {
+      currentDetailRowIndex = null;
+    }
+
     if (shouldPushState) pushAppState({ section: sectionId });
     
-    // Auto-close sidebar on mobile after clicking a link
+    // Auto-close sidebar + backdrop on mobile after clicking a link
     if (window.innerWidth <= 768) {
-      document.getElementById('sidebar').classList.remove('open');
+      closeSidebar();
     }
   }
 
@@ -199,8 +231,6 @@
     google.script.run
       .withSuccessHandler(function(stats) {
         document.getElementById('stat-conv-overall').textContent = stats.overallConversionRate + '%';
-        document.getElementById('stat-conv-new').textContent = stats.newClientConversionRate + '%';
-        document.getElementById('stat-conv-returning').textContent = stats.returningReengagementRate + '%';
         
         const cityListEl = document.getElementById('stat-city-lead-list');
         if (stats.topLeadCities && stats.topLeadCities.length > 0) {
@@ -218,6 +248,7 @@
         renderTrendChart(stats.timeline);
         renderSourceChart(stats.sources);
         renderLeadByChart(stats.leadBy);
+        renderBranchChart(stats.branchStats);
       })
       .getDashboardStats(start, end);
   }
@@ -225,29 +256,40 @@
   function renderChart(stats) {
     const ctx = document.getElementById('dashboardChart').getContext('2d');
     
-    const closedTotal = stats.closed + stats.confirmedClosed;
+    // "Other" bar = Pending + Follow Up + Not Interested + No Answer + (historical Call Dropped)
+    const otherCount = stats.otherGroup ||
+      (stats.pending + stats.followUp + stats.notInterested + stats.callNotAnswered + (stats.callDropped || 0));
+
+    // Total confirmed across all arrival statuses
+    const confirmedTotal = stats.confirmed ||
+      (stats.confirmedReached + (stats.confirmedNotReached || 0) + stats.confirmedClosed + (stats.confirmedWithoutReg || 0));
+
     const labels = [
-      'Total', 'Pending', 'Follow Up', 'Not Int', 'Closed', 'No Ans', 'Gen Inq', 'Dropped', 'Pat Will Cont', 
-      'Conf (New-Reg)', 'Conf (Ret-Reach)', 'Conf (Ret-NoReach)', 'Conf (No Reg)'
+      'Total Enquiries',
+      'Other\n(Pend+FU+NI+NA)',
+      'Gen Inquiry',
+      'Pat Will Contact',
+      'Confirmed',
+      'Conf – Closed',
+      'Closed'
     ];
     const data = [
       stats.total,
-      stats.pending,
-      stats.followUp,
-      stats.notInterested,
-      closedTotal,
-      stats.callNotAnswered,
+      otherCount,
       stats.generalInquiry,
-      stats.callDropped,
       stats.patientWillContact,
-      stats.confirmedWithReg,
-      stats.confirmedReached,
-      stats.confirmedNotReached,
-      stats.confirmedWithoutReg
+      confirmedTotal,
+      stats.confirmedClosed,
+      stats.closed
     ];
     const bgColors = [
-      '#006A7F', '#fbbc04', '#4285f4', '#ea4335', '#9e9e9e', '#ffb74d', '#00bcd4', '#e53935', '#8e24aa',
-      '#2e7d32', '#34c759', '#7cb342', '#cfd8dc'
+      '#006A7F',  // Total – teal
+      '#78909c',  // Other – blue-grey
+      '#00bcd4',  // Gen Inquiry – cyan
+      '#8e24aa',  // Pat Will Contact – purple
+      '#1565c0',  // Confirmed total – dark blue
+      '#e53935',  // Conf Closed – red
+      '#9e9e9e'   // Closed – grey
     ];
 
     if (dashboardChartInstance) dashboardChartInstance.destroy();
@@ -259,7 +301,8 @@
         datasets: [{
           label: 'Leads',
           data: data,
-          backgroundColor: bgColors
+          backgroundColor: bgColors,
+          borderRadius: 5
         }]
       },
       options: { 
@@ -267,7 +310,31 @@
         maintainAspectRatio: false, 
         plugins: {
           legend: { display: false },
-          title: { display: true, text: 'Lead Status Overview' }
+          title: { display: true, text: 'Lead Status Overview' },
+          tooltip: {
+            callbacks: {
+              afterLabel: function(ctx) {
+                // Hover "Other" bar — show breakdown
+                if (ctx.dataIndex === 1) {
+                  return [
+                    '  Pending: ' + stats.pending,
+                    '  Follow Up: ' + stats.followUp,
+                    '  Not Interested: ' + stats.notInterested,
+                    '  No Answer: ' + stats.callNotAnswered
+                  ];
+                }
+                // Hover "Confirmed" bar — show sub-breakdown
+                if (ctx.dataIndex === 4) {
+                  return [
+                    '  Reached: ' + stats.confirmedReached,
+                    '  Closed: ' + stats.confirmedClosed,
+                    '  Pending Arrival: ' + ((stats.confirmedWithoutReg || 0) + (stats.confirmedNotReached || 0))
+                  ];
+                }
+                return [];
+              }
+            }
+          }
         },
         scales: { 
           y: { beginAtZero: true, ticks: { stepSize: 1 } } 
@@ -278,9 +345,10 @@
 
   function renderTrendChart(timeline) {
     const ctx = document.getElementById('trendChart').getContext('2d');
-    const labels = Object.keys(timeline);
-    const totalData = labels.map(l => timeline[l].total);
-    const confirmedWithRegData = labels.map(l => timeline[l].confirmedWithReg);
+    // Sort dates ascending (oldest → newest) for correct left-to-right trend
+    const labels = Object.keys(timeline).sort();
+    const totalData   = labels.map(l => timeline[l].total);
+    const reachedData = labels.map(l => timeline[l].reached || 0);
 
     if (trendChartInstance) trendChartInstance.destroy();
 
@@ -289,15 +357,15 @@
       data: {
         labels: labels,
         datasets: [
-          { label: 'Total Enquiries', data: totalData, borderColor: '#006A7F', backgroundColor: 'rgba(0,106,127,0.1)', fill: true, tension: 0.3 },
-          { label: 'Confirmed (With Reg ID)', data: confirmedWithRegData, borderColor: '#34c759', backgroundColor: 'rgba(52,199,89,0.1)', fill: true, tension: 0.3 }
+          { label: 'Total Enquiries', data: totalData,   borderColor: '#006A7F', backgroundColor: 'rgba(0,106,127,0.1)', fill: true, tension: 0.3 },
+          { label: 'Confirmed – Reached', data: reachedData, borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,0.1)', fill: true, tension: 0.3 }
         ]
       },
       options: { 
         responsive: true, 
         maintainAspectRatio: false, 
         plugins: {
-          title: { display: true, text: 'Enquiries vs Confirmed (Reg) Trend' }
+          title: { display: true, text: 'Enquiries vs Reached' }
         },
         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
       }
@@ -366,6 +434,62 @@
     });
   }
 
+  function renderBranchChart(branchData) {
+    const ctx = document.getElementById('branchChart').getContext('2d');
+    const labels = Object.keys(branchData || {});
+    const data = labels.map(l => branchData[l]);
+    const total = data.reduce((s, v) => s + v, 0);
+
+    const bgColors = [
+      '#006A7F', '#34c759', '#fbbc04', '#e53935', '#8e24aa',
+      '#4285f4', '#ff7043', '#26c6da', '#ab47bc', '#66bb6a'
+    ];
+
+    if (window.branchChartInstance) window.branchChartInstance.destroy();
+
+    if (labels.length === 0) {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.font = '14px Roboto';
+      ctx.fillStyle = '#aaa';
+      ctx.textAlign = 'center';
+      ctx.fillText('No branch data in this date range', ctx.canvas.width / 2, ctx.canvas.height / 2);
+      return;
+    }
+
+    window.branchChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Leads Transferred',
+          data: data,
+          backgroundColor: bgColors.slice(0, labels.length),
+          borderRadius: 5
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Branch-wise Lead Transfers  (Total assigned: ' + total + ')' },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const pct = total > 0 ? ((ctx.parsed.x / total) * 100).toFixed(1) : 0;
+                return ' ' + ctx.parsed.x + ' leads (' + pct + '%)';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  }
+
   // --- Clients Database ---
   function clearClientsFilters() {
     document.getElementById('cd-filter-name').value = '';
@@ -401,22 +525,21 @@
     clients.forEach(client => {
       let regIdHtml = client.regId ? `<span><span class="material-icons">badge</span> ${client.regId}</span>` : '';
       html += `
-        <div class="lead-item">
+        <div class="lead-item" style="cursor: pointer;" onclick="openClientDetail('${client.clientId}')">
           <div class="lead-info">
-            <span class="lead-name" onclick="openClientDetail('${client.clientId}')">${client.name}</span>
+            <span class="lead-name">${client.name}</span>
             <div class="lead-meta">
-              <span><span class="material-icons">phone</span> <a href="tel:${client.phone}" style="color: inherit; text-decoration: none;">${client.phone}</a></span>
+              <span><span class="material-icons">phone</span> <a href="tel:${client.phone}" style="color: inherit; text-decoration: none;" onclick="event.stopPropagation()">${client.phone}</a></span>
               <span><span class="material-icons">location_on</span> ${client.city}</span>
               ${regIdHtml}
             </div>
-            <div class="lead-count">
-              <strong>Total Leads Generated:</strong> ${client.leadCount}
-            </div>
+            <div class="lead-count"><strong>Total Leads:</strong> ${client.leadCount}</div>
           </div>
-          <div class="lead-actions" style="margin-left: 15px;">
-            <a href="tel:${client.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 50%;">
+          <div class="lead-actions" style="margin-left: 15px; display: flex; align-items: center; gap: 10px;">
+            <a href="tel:${client.phone}" class="btn btn-primary" style="display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 50%;" onclick="event.stopPropagation()">
               <span class="material-icons" style="font-size: 20px; margin: 0;">call</span>
             </a>
+            <span class="material-icons" style="color: var(--text-light); font-size: 20px;">chevron_right</span>
           </div>
         </div>
       `;
@@ -424,33 +547,48 @@
     container.innerHTML = html;
   }
 
-  // --- Client Detail View ---
+  // --- Client Detail Page (Full Page, no overlay) ---
+  let previousClientSectionId = 'clients-section';
+
   function openClientDetail(clientId, shouldPushState = true) {
     currentClientDetailId = clientId;
-    document.getElementById('client-detail-overlay').style.display = 'flex';
-    document.getElementById('cd-body').innerHTML = '<div class="loading">Loading client details...</div>';
-    document.getElementById('cd-name').textContent = 'Loading...';
-    if (shouldPushState) pushAppState({ overlay: 'client', clientId: clientId });
+    const fromSection = getActiveSectionId();
+    if (fromSection !== 'client-detail-section' && fromSection !== 'lead-detail-section') {
+      previousClientSectionId = fromSection;
+    }
+    showSection('client-detail-section', null, false);
+    const mainContent = document.getElementById('main-content-area');
+    if (mainContent) mainContent.scrollTop = 0;
+    window.scrollTo(0, 0);
+    document.getElementById('cd-page-body').innerHTML = '<div class="loading">Loading client details...</div>';
+    if (shouldPushState) pushAppState({ section: 'client-detail-section', clientId: clientId });
 
     google.script.run
       .withSuccessHandler(renderClientDetail)
       .withFailureHandler(function(error) {
-        document.getElementById('cd-name').textContent = 'Client details';
-        document.getElementById('cd-body').innerHTML = `<div class="message error" style="display:block;">Error loading client: ${error.message}</div>`;
+        document.getElementById('cd-page-body').innerHTML = `<div class="message error" style="display:block;">Error loading client: ${error.message}</div>`;
       })
       .getClientDetailsWithLeads(clientId);
   }
 
-  function closeClientDetail(syncHistory = true) {
-    document.getElementById('client-detail-overlay').style.display = 'none';
+  function closeClientDetailPage(syncHistory = true) {
     currentClientDetailId = null;
-    if (syncHistory && history.state && history.state.overlay === 'client') {
+    showSection(previousClientSectionId || 'clients-section', null, false);
+    if (syncHistory && history.state && history.state.section === 'client-detail-section') {
       history.back();
     }
   }
 
+  // Backward-compat alias
+  function closeClientDetail(syncHistory = true) {
+    if (getActiveSectionId() === 'client-detail-section') {
+      closeClientDetailPage(syncHistory);
+    }
+  }
+
   function renderClientDetail(data) {
-    document.getElementById('cd-name').textContent = data.name;
+    const body = document.getElementById('cd-page-body');
+    body.setAttribute('data-client-id', data.clientId || '');
 
     let histHtml = '';
     if (data.editHistory && data.editHistory.length > 0) {
@@ -469,57 +607,67 @@
     let leadsHtml = '';
     if (data.leads && data.leads.length > 0) {
       data.leads.forEach((lead, idx) => {
-        let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
+        let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus)
+          ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
         const dateHtml = leadDateHtml(lead);
         leadsHtml += `
-          <div class="lead-item" style="cursor: pointer; margin-bottom: 10px;" onclick="openUserDetail(${lead.rowIndex})">
+          <div class="lead-item" style="cursor: pointer;" onclick="openUserDetail(${lead.rowIndex})">
             <div class="lead-info">
-              <span class="lead-name" style="font-size: 16px;">Lead ${data.leads.length - idx} <span style="font-size: 12px; color: var(--text-light); font-weight: normal;">(${lead.clientType})</span></span>
+              <span class="lead-name" style="font-size: 16px;">Lead ${data.leads.length - idx}
+                <span style="font-size: 12px; color: var(--text-light); font-weight: normal;">(${lead.clientType})</span>
+              </span>
               <div class="lead-meta" style="margin-top: 5px;">
                 ${dateHtml}
                 ${statusBadge(lead.status)}
                 <span><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
                 ${arrivalHtml}
               </div>
-              <div class="lead-note">
-                <strong>Latest Note:</strong> ${lead.latestConversation}
-              </div>
+              <div class="lead-note"><strong>Latest Note:</strong> ${lead.latestConversation}</div>
             </div>
             <div class="lead-actions">
-               <span class="material-icons" style="color: var(--primary);">chevron_right</span>
+              <span class="material-icons" style="color: var(--primary);">chevron_right</span>
             </div>
-          </div>
-        `;
+          </div>`;
       });
     } else {
-      leadsHtml = '<p style="color: var(--text-light);">No leads generated yet.</p>';
+      leadsHtml = '<p style="color: var(--text-light); padding: 12px 0;">No leads generated yet.</p>';
     }
 
-    const html = `
-      <div class="detail-summary">
-        <div>
-          <div class="detail-eyebrow">Client Profile</div>
-          <div class="detail-primary"><span class="material-icons">call</span><a href="tel:${data.phone}" style="color: var(--primary); text-decoration: none;">${data.phone}</a></div>
+    const totalLeads = data.leads ? data.leads.length : 0;
+    const regIdRow = data.registrationId
+      ? `<div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value">${data.registrationId}</div></div>` : '';
+
+    body.innerHTML = `
+      <div class="detail-body">
+        <div class="detail-summary">
+          <div>
+            <div class="detail-eyebrow">Client Profile</div>
+            <div style="margin-top: 6px;">
+              <span style="font-size: 24px; font-weight: 700; color: var(--primary);">${data.name}</span>
+            </div>
+            <div class="detail-primary" style="margin-top: 8px;">
+              <span class="material-icons">call</span>
+              <a href="tel:${data.phone}" style="color: var(--primary); text-decoration: none;">${data.phone}</a>
+            </div>
+          </div>
+          <div class="detail-chip">${totalLeads} lead${totalLeads !== 1 ? 's' : ''}</div>
         </div>
-        <div class="detail-chip">${data.leads ? data.leads.length : 0} leads</div>
-      </div>
 
-      <div class="ud-meta-grid">
-        <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value">${data.city}</div></div>
-        <div class="ud-row"><div class="ud-label">First Enquiry:</div><div class="ud-value">${data.enquiryDate}</div></div>
-        <div class="ud-row"><div class="ud-label">Orig. Source:</div><div class="ud-value">${data.source}</div></div>
-        <div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value">${data.registrationId || 'None'}</div></div>
-      </div>
-      
-      ${histHtml ? `<div class="detail-section"><div class="ud-section-title">Edit History</div>${histHtml}</div>` : ''}
+        <div class="ud-meta-grid">
+          <div class="ud-row"><div class="ud-label">City:</div><div class="ud-value">${data.city}</div></div>
+          <div class="ud-row"><div class="ud-label">First Enquiry:</div><div class="ud-value">${data.enquiryDate}</div></div>
+          <div class="ud-row"><div class="ud-label">Original Source:</div><div class="ud-value">${data.source}</div></div>
+          ${regIdRow}
+        </div>
 
-      <div class="detail-section"><div class="ud-section-title">Generated Leads</div></div>
-      <div class="list-container">
-        ${leadsHtml}
+        ${histHtml ? `<div class="detail-section"><div class="ud-section-title">Edit History</div>${histHtml}</div>` : ''}
+
+        <div class="detail-section">
+          <div class="ud-section-title">Generated Leads (${totalLeads})</div>
+          <div class="list-container">${leadsHtml}</div>
+        </div>
       </div>
     `;
-    
-    document.getElementById('cd-body').innerHTML = html;
   }
 
   // --- All Leads ---
@@ -682,7 +830,6 @@
     if (mainContent) mainContent.scrollTop = 0;
     window.scrollTo(0, 0);
     
-    document.getElementById('ld-page-title').textContent = 'Lead Details';
     document.getElementById('ld-page-body').innerHTML = '<div class="loading">Loading details...</div>';
     
     if (shouldPushState) pushAppState({ section: 'lead-detail-section', rowIndex: rowIndex });
@@ -690,8 +837,7 @@
     google.script.run
       .withSuccessHandler(renderUserDetail)
       .withFailureHandler(function(error) {
-        document.getElementById('ld-page-title').textContent = 'Lead Details';
-        document.getElementById('ld-page-body').innerHTML = `<div class="message error" style="display:block;">Error loading lead: ${error.message}</div>`;
+        document.getElementById('ld-page-body').innerHTML = `<div class="detail-body"><div class="message error" style="display:block;">Error loading lead: ${error.message}</div></div>`;
       })
       .getUserDetails(rowIndex);
   }
@@ -710,9 +856,13 @@
     } else if (previousSectionId === 'today-calls-section') {
       showSection('today-calls-section', null, false);
       fetchTodayCalls(document.querySelector('#tc-pagination .active') ? parseInt(document.querySelector('#tc-pagination .active').textContent) : 1);
-    } else if (previousSectionId === 'client-detail-overlay') {
+    } else if (previousSectionId === 'client-detail-section') {
       // came from inside client detail — just go back
-      showSection('clients-section', null, false);
+      if (currentClientDetailId) {
+        openClientDetail(currentClientDetailId, false);
+      } else {
+        showSection('clients-section', null, false);
+      }
     } else {
       showSection(previousSectionId || 'dashboard-section', null, false);
     }
@@ -729,11 +879,11 @@
   }
 
   function renderUserDetail(user) {
-    document.getElementById('ld-page-title').textContent = user.name;
-    // Store name+clientRow on the page section element
-    const pageTitle = document.getElementById('ld-page-title');
-    pageTitle.setAttribute('data-original-name', user.name);
-    pageTitle.setAttribute('data-client-row', user.clientRowIndex);
+    // Store name+clientRow on the page section body for save logic
+    const body = document.getElementById('ld-page-body');
+    body.setAttribute('data-original-name', user.name);
+    body.setAttribute('data-client-row', user.clientRowIndex);
+    body.setAttribute('data-row-index', user.rowIndex || '');
     
     let convHtml = '';
     if (user.conversations && user.conversations.length > 0) {
@@ -767,7 +917,7 @@
 
     const statusOptions = [
       'Pending', 'Confirmed', 'Not Interested', 'Follow Up', 
-      'Closed', 'Call Not Answered', 'General Inquiry', 'Call Dropped',
+      'Closed', 'Call Not Answered', 'General Inquiry',
       'Patient Will Contact'
     ].map(opt => 
       `<option value="${opt}" ${user.status === opt ? 'selected' : ''}>${opt}</option>`
@@ -777,7 +927,7 @@
       `<option value="${opt}" ${user.branch === opt ? 'selected' : ''}>${opt || 'Select Branch'}</option>`
     ).join('');
 
-    const arrivalOptions = ['', 'Reached', 'Not Reached', 'Closed'].map(opt => 
+    const arrivalOptions = ['', 'Reached', 'Closed'].map(opt => 
       `<option value="${opt}" ${user.arrivalStatus === opt ? 'selected' : ''}>${opt || 'Select Arrival'}</option>`
     ).join('');
 
@@ -820,10 +970,11 @@
           ${isCurrentUserAdmin ? `<button class="btn btn-outline" style="color: #e53935; border-color: #e53935; padding: 6px 12px; font-size: 12px;" onclick="handleDeleteLead(this)">Delete Lead</button>` : ''}
         </div>
         ${convHtml}
-      </div>
-
+      </div>      ${(isCurrentUserAdmin || !user.arrivalStatus) ? `
       <div class="update-box detail-section">
-        <div class="update-box-title">Add Note & Update Status</div>
+        <div class="update-box-title">Add Note & Update Status
+          ${user.arrivalStatus ? '<span style="font-size:12px; color:#e53935; font-weight:normal; margin-left:8px;">(Lead Closed \u2014 Admin Only)</span>' : ''}
+        </div>
         <div class="update-grid">
           <div class="form-group">
             <label>Update Status</label>
@@ -837,12 +988,12 @@
             <label>Contact Again Date</label>
             <input type="date" id="ud-update-cad" value="${user.contactAgainDate || ''}">
           </div>
-          <div class="form-group" id="ud-regid-group" style="display: none;">
+          <div class="form-group" id="ud-regid-group" style="display: ${user.clientType === 'Returning' ? 'none' : 'block'};">
             <label>Registration ID</label>
             <input type="text" id="ud-update-regid" value="${user.registrationId || ''}" placeholder="Enter Registration ID">
           </div>
           <div class="form-group" id="ud-arrival-group" style="display: none;">
-            <label>Arrival Status</label>
+            <label>Arrival Status (Reached / Closed)</label>
             <select id="ud-update-arrival">${arrivalOptions}</select>
           </div>
         </div>
@@ -851,10 +1002,21 @@
         </div>
         <button class="btn btn-primary" onclick="saveUserDetailConversation(this)">Update</button>
       </div>
+      ` : `
+      <div class="update-box detail-section" style="background: #fff8f8; border: 1.5px solid #ffcdd2;">
+        <div class="update-box-title" style="color: #c62828;">
+          <span class="material-icons" style="vertical-align: middle; font-size: 18px; margin-right: 6px;">lock</span>
+          Lead Closed
+        </div>
+        <p style="color: var(--text-light); font-size: 14px; margin: 8px 0 0;">This lead has been closed (Arrival Status: <strong>${user.arrivalStatus}</strong>). Only an admin can make further edits.</p>
+      </div>
+      `}
     `;
     
     document.getElementById('ld-page-body').innerHTML = html;
-    toggleDetailRegId(user.clientType); // Call once to initialize correctly
+    if (isCurrentUserAdmin || !user.arrivalStatus) {
+      toggleDetailRegId(user.clientType); // Call once to initialize correctly
+    }
   }
 
   function toggleDetailRegId(clientType) {
@@ -862,18 +1024,15 @@
     const regGroup = document.getElementById('ud-regid-group');
     const arrGroup = document.getElementById('ud-arrival-group');
     
-    if (status === 'Confirmed') {
-      if (clientType === 'Returning') {
-        regGroup.style.display = 'none';
-        arrGroup.style.display = 'block';
-      } else {
-        regGroup.style.display = 'block';
-        arrGroup.style.display = 'none';
-      }
+    // New leads: reg ID is always visible (regardless of status)
+    if (clientType !== 'Returning') {
+      regGroup.style.display = 'block';
     } else {
       regGroup.style.display = 'none';
-      arrGroup.style.display = 'none';
     }
+    
+    // Arrival status (Reached / Closed) shown when Confirmed — for both New and Returning
+    arrGroup.style.display = (status === 'Confirmed') ? 'block' : 'none';
   }
 
   function handleDeleteLead(btn) {
@@ -918,8 +1077,8 @@
     // Name and City edits
     const nameInput = document.getElementById('ud-edit-name');
     const name = nameInput ? nameInput.value.trim() : null;
-    const pageTitle = document.getElementById('ld-page-title');
-    const originalName = pageTitle ? pageTitle.getAttribute('data-original-name') : null;
+    const pageBody = document.getElementById('ld-page-body');
+    const originalName = pageBody ? pageBody.getAttribute('data-original-name') : null;
     
     const cityInput = document.getElementById('ud-edit-city');
     const city = cityInput ? cityInput.value.trim() : null;
@@ -928,18 +1087,16 @@
     const clientType = document.getElementById('ud-update-status').getAttribute('data-client-type') || 'New';
     
     if (status === 'Confirmed') {
-      if (clientType === 'New' && !branch) {
-        return alert('Please select a Branch when confirming a new lead.');
+      if (!branch) {
+        return alert('Please select a Branch when confirming a lead.');
       }
-      if (clientType === 'Returning' && arrivalStatus === 'Reached' && !branch) {
-        return alert('Please select a Branch when a returning client has reached.');
-      }
+      // Arrival status is optional — no longer required
     }
 
     btn.disabled = true;
     btn.textContent = 'Saving...';
     
-    const clientRowFromPage = pageTitle ? pageTitle.getAttribute('data-client-row') : null;
+    const clientRowFromPage = pageBody ? pageBody.getAttribute('data-client-row') : null;
 
     google.script.run
       .withSuccessHandler(function(response) {
@@ -947,7 +1104,7 @@
         btn.textContent = 'Update';
         textArea.value = '';
         
-        // Update display text
+        // Update display text in place
         if(response.status) {
           document.getElementById('disp-status').innerHTML = statusBadge(response.status);
           document.getElementById('disp-status').setAttribute('data-original-status', response.status);
@@ -955,12 +1112,8 @@
         if(response.branch !== undefined) document.getElementById('disp-branch').textContent = response.branch || 'N/A';
         if(response.contactAgainDate !== undefined) document.getElementById('disp-cad').textContent = response.contactAgainDate || 'None';
         if(response.registrationId !== undefined) document.getElementById('disp-regid').textContent = response.registrationId || 'None';
-        if(response.name && pageTitle) {
-            pageTitle.setAttribute('data-original-name', response.name);
-        }
-        if(response.city) {
-            document.getElementById('disp-city').setAttribute('data-original-city', response.city);
-        }
+        if(response.name && pageBody) pageBody.setAttribute('data-original-name', response.name);
+        if(response.city) document.getElementById('disp-city').setAttribute('data-original-city', response.city);
 
         const cRow = currentDetailRowIndex;
         openLeadDetailPage(cRow, false);
@@ -1171,5 +1324,38 @@
       document.addEventListener(evt, onActivity, { passive: true });
     });
   })();
+
+  // Click outside / blank space to close/collapse sidebar
+  document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    
+    const isMobile = window.innerWidth <= 768;
+    const isSidebarOpen = isMobile ? sidebar.classList.contains('open') : !sidebar.classList.contains('collapsed');
+    if (!isSidebarOpen) return;
+    
+    const toggleBtn = document.querySelector('.sidebar-toggle');
+    const mobileToggleBtn = document.querySelector('.mobile-menu-btn');
+    if (toggleBtn && (toggleBtn === event.target || toggleBtn.contains(event.target))) return;
+    if (mobileToggleBtn && (mobileToggleBtn === event.target || mobileToggleBtn.contains(event.target))) return;
+    
+    const clickedInsideSidebar = sidebar.contains(event.target);
+    if (clickedInsideSidebar) {
+      const clickedNavLink = event.target.closest('.nav-links li');
+      if (!clickedNavLink) {
+        if (isMobile) {
+          closeSidebar();
+        } else {
+          sidebar.classList.add('collapsed');
+        }
+      }
+    } else {
+      if (isMobile) {
+        closeSidebar();
+      } else {
+        sidebar.classList.add('collapsed');
+      }
+    }
+  });
 
 </script>
