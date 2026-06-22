@@ -21,6 +21,18 @@
     return String(value || '').trim();
   }
 
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function(ch) {
+      return ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch];
+    });
+  }
+
   function setLoginMessage(message) {
     const msgDiv = document.getElementById('login-message');
     msgDiv.textContent = message || '';
@@ -1127,10 +1139,43 @@
   }
 
   // --- Add Lead Flow (New vs Existing) ---
+  function renderExistingOpenLead(openLead) {
+    const container = document.getElementById('existing-open-lead');
+    if (!container) return;
+
+    if (!openLead) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+
+    const createdLabel = 'Lead Created: ' + (openLead.enquiryDate || 'N/A');
+    const cadHtml = openLead.contactAgainDate
+      ? `<span><span class="material-icons">event_repeat</span>CAD: ${escapeHtml(openLead.contactAgainDate)}</span>`
+      : '';
+
+    container.style.display = 'block';
+    container.innerHTML = `
+      <button type="button" class="open-lead-card" onclick="openLeadDetailPage(${Number(openLead.rowIndex)})" aria-label="Open existing open lead details">
+        <span class="open-lead-title">
+          <span class="material-icons">assignment</span>
+          Open lead found
+        </span>
+        <span class="lead-meta">
+          <span><span class="material-icons">calendar_today</span>${escapeHtml(createdLabel)}</span>
+          ${cadHtml}
+          ${statusBadge(openLead.status)}
+        </span>
+        <span class="lead-note"><strong>Last Note:</strong> ${escapeHtml(openLead.latestConversation || 'No conversations yet')}</span>
+      </button>
+    `;
+  }
+
   function resetAddDataFlow() {
     document.getElementById('phone-check-container').style.display = 'block';
     document.getElementById('existing-client-container').style.display = 'none';
     document.getElementById('new-client-container').style.display = 'none';
+    renderExistingOpenLead(null);
     
     document.getElementById('check-phone').value = '';
     document.getElementById('verify-message').style.display = 'none';
@@ -1166,11 +1211,12 @@
           document.getElementById('existing-client-container').style.display = 'block';
           document.getElementById('existing-clientId').value = c.clientId;
           document.getElementById('existing-client-details').innerHTML = `
-            <strong>Name:</strong> ${c.name} <br>
-            <strong>City:</strong> ${c.city} <br>
-            <strong>Phone:</strong> ${c.phone} <br>
-            <strong>First Enq Date:</strong> ${c.enqDate}
+            <strong>Name:</strong> ${escapeHtml(c.name)} <br>
+            <strong>City:</strong> ${escapeHtml(c.city)} <br>
+            <strong>Phone:</strong> ${escapeHtml(c.phone)} <br>
+            <strong>First Enq Date:</strong> ${escapeHtml(c.enqDate)}
           `;
+          renderExistingOpenLead(response.openLead);
           
           // Pre-fill today's date for convenience
           document.getElementById('ex-enquiryDate').valueAsDate = new Date();
@@ -1199,8 +1245,7 @@
     const clientId = document.getElementById('existing-clientId').value;
     const data = {
       enquiryDate: document.getElementById('ex-enquiryDate').value,
-      leadBy: document.getElementById('ex-leadBy').value,
-      source: document.getElementById('ex-source').value
+      leadBy: document.getElementById('ex-leadBy').value
     };
     
     btn.disabled = true;

@@ -209,25 +209,95 @@ function getClientByPhone(phone) {
   return null;
 }
 
+function isOpenLeadRow(row) {
+  const status = String(row[4] || "Pending").trim().toLowerCase();
+  const arrivalStatus = String(row[10] || "").trim().toLowerCase();
+
+  if (status === "closed") return false;
+  if (
+    status === "confirmed" &&
+    ["reached", "not reached", "closed"].indexOf(arrivalStatus) !== -1
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function getLastOpenLeadForClient(clientId) {
+  const leadsSheet = getLeadsSheet();
+  const leadsData = leadsSheet.getDataRange().getValues();
+  let lastOpenLead = null;
+
+  for (let i = 1; i < leadsData.length; i++) {
+    const row = leadsData[i];
+    if (row[1] !== clientId || !isOpenLeadRow(row)) continue;
+
+    let conversations = [];
+    try {
+      conversations = JSON.parse(row[7]) || [];
+    } catch (e) {}
+
+    const rawDate = row[2] instanceof Date ? row[2].getTime() : new Date(row[2] || 0).getTime();
+    const lead = {
+      rowIndex: i + 1,
+      enquiryDate: formatDateToDayMonthYear(row[2]),
+      status: row[4] || "Pending",
+      branch: row[5] || "",
+      contactAgainDate: row[6] instanceof Date
+        ? Utilities.formatDate(row[6], Session.getScriptTimeZone(), "yyyy-MM-dd")
+        : String(row[6] || ""),
+      latestConversation: conversations.length > 0
+        ? conversations[conversations.length - 1].text
+        : "No conversations yet",
+      rawDate: isNaN(rawDate) ? 0 : rawDate
+    };
+
+    if (!lastOpenLead || lead.rowIndex > lastOpenLead.rowIndex) {
+      lastOpenLead = lead;
+    }
+  }
+
+  return lastOpenLead;
+}
+
 // Called from UI when caller enters phone number
 function checkPhoneExists(phone) {
   const client = getClientByPhone(phone);
   if (client) {
-    return { exists: true, client: client };
+    return {
+      exists: true,
+      client: client,
+      openLead: getLastOpenLeadForClient(client.clientId)
+    };
   }
   return { exists: false };
 }
 
 // Add new lead for existing client
 function addLeadForExistingClient(clientId, data) {
+  const clientsSheet = getClientsSheet();
   const leadsSheet = getLeadsSheet();
   const leadId = Utilities.getUuid();
+  const clientsData = clientsSheet.getDataRange().getValues();
+  let client = null;
+
+  for (let i = 1; i < clientsData.length; i++) {
+    if (clientsData[i][0] === clientId) {
+      client = clientsData[i];
+      break;
+    }
+  }
+
+  if (!client) {
+    throw new Error("Client not found.");
+  }
   
   leadsSheet.appendRow([
     leadId,
     clientId,
     data.enquiryDate,
-    data.source, // Even for returning, they might come from a new campaign/source
+    client[6] || "", // Returning leads keep the client's original source.
     "Pending", // Default Status
     "", // Branch
     "", // Contact Again Date

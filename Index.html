@@ -211,6 +211,7 @@
           <div class="form-container" id="existing-client-container" style="display: none; margin-top: 20px; border-left: 4px solid var(--primary);">
             <h3>Existing Client Found</h3>
             <p id="existing-client-details" style="margin: 15px 0; color: var(--text-light); line-height: 1.6;"></p>
+            <div id="existing-open-lead" class="existing-open-lead" style="display: none;"></div>
             
             <form id="add-lead-existing-form" onsubmit="handleAddLeadExisting(event)">
               <input type="hidden" id="existing-clientId">
@@ -225,27 +226,6 @@
                     <option value="" disabled selected>Select Lead By</option>
                     <option value="Call">Call</option>
                     <option value="Text">Text</option>
-                  </select>
-                </div>
-                <div class="form-group full-width">
-                  <label>Source</label>
-                  <select id="ex-source" required>
-                    <option value="" disabled selected>Select Source</option>
-                    <option value="Call">Call</option>
-                    <option value="Text">Text</option>
-                    <option value="Walk in">Walk in</option>
-                    <option value="Search">Search</option>
-                    <option value="word of mouth">word of mouth</option>
-                    <option value="Membership Plan">Membership Plan</option>
-                    <option value="Referral">Referral</option>
-                    <option value="Dr.Bikram Reference">Dr.Bikram Reference</option>
-                    <option value="Staff Reference">Staff Reference</option>
-                    <option value="Medical store reference">Medical store reference</option>
-                    <option value="Shark tank">Shark tank</option>
-                    <option value="social">social</option>
-                    <option value="BNI">BNI</option>
-                    <option value="Existing patient">Existing patient</option>
-                    <option value="Ongoing patient">Ongoing patient</option>
                   </select>
                 </div>
               </div>
