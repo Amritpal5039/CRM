@@ -702,6 +702,7 @@
     document.getElementById('al-filter-end').value = '';
     document.getElementById('al-filter-sort').value = 'fresh';
     document.getElementById('al-filter-status').value = 'Pending';
+    document.getElementById('al-filter-branch').value = '';
     toggleRegFilter();
     fetchAllLeads(1);
   }
@@ -714,6 +715,7 @@
       startDate: document.getElementById('al-filter-start').value,
       endDate: document.getElementById('al-filter-end').value,
       status: document.getElementById('al-filter-status').value,
+      branch: document.getElementById('al-filter-branch').value,
       regIdFilter: document.getElementById('al-filter-status').value === 'Confirmed' ? document.getElementById('al-filter-reg').value : null,
       sortOrder: document.getElementById('al-filter-sort').value,
       page: page
@@ -727,7 +729,7 @@
       .withSuccessHandler(function(response) {
         document.getElementById('al-loading').style.display = 'none';
         renderLeadsList('al-list', response.leads);
-        renderPagination('al-pagination', response.currentPage, response.totalPages, 'fetchAllLeads');
+        renderPagination('al-pagination', response.currentPage, response.totalPages, 'fetchAllLeads', response.totalItems);
       })
       .getFilteredLeads(params);
   }
@@ -760,7 +762,7 @@
       .withSuccessHandler(function(response) {
         document.getElementById('tc-loading').style.display = 'none';
         renderLeadsList('tc-list', response.leads);
-        renderPagination('tc-pagination', response.currentPage, response.totalPages, 'fetchTodayCalls');
+        renderPagination('tc-pagination', response.currentPage, response.totalPages, 'fetchTodayCalls', response.totalItems);
       })
       .getFilteredLeads(params);
   }
@@ -805,10 +807,17 @@
     container.innerHTML = html;
   }
 
-  function renderPagination(containerId, currentPage, totalPages, fetchFuncStr) {
-    if (totalPages <= 1) return;
+  function renderPagination(containerId, currentPage, totalPages, fetchFuncStr, totalItems) {
     const container = document.getElementById(containerId);
+    const count = Number(totalItems || 0);
+    const noun = count === 1 ? 'lead' : 'leads';
     let html = '';
+
+    html += `<div class="pagination-count">${count} ${noun} found</div>`;
+    if (totalPages <= 1) {
+      container.innerHTML = html;
+      return;
+    }
     
     html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="${fetchFuncStr}(${currentPage - 1})">Prev</button>`;
     

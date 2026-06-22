@@ -472,6 +472,7 @@ function getFilteredLeads(params) {
   const excludeConfirmed = params.excludeConfirmed || false;
   const requireStatus = params.requireStatus || null;
   const filterStatus = params.status || null;
+  const filterBranch = params.branch || null;
 
   const startDateStr = params.startDate ? params.startDate : null;
   const endDateStr = params.endDate ? params.endDate : null;
@@ -505,6 +506,7 @@ function getFilteredLeads(params) {
     if (excludeConfirmed && statusStr.toLowerCase() === "confirmed") match = false;
     if (requireStatus && statusStr.toLowerCase() !== requireStatus.toLowerCase()) match = false;
     if (match && filterStatus && statusStr.toLowerCase() !== filterStatus.toLowerCase()) match = false;
+    if (match && filterBranch && String(branch || "").trim() !== filterBranch) match = false;
 
     // Confirmation Detail filter
     if (match && params.regIdFilter) {
