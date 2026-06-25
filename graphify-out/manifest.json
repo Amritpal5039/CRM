@@ -705,33 +705,18 @@
     "semantic_hash": ""
   },
   "Index.html": {
-    "mtime": 1781677551.8251903,
-    "ast_hash": "38552f67e8518b8babc74b460eea140c",
-    "semantic_hash": ""
-  },
-  "backup/Index.html": {
-    "mtime": 1781348994.183972,
-    "ast_hash": "10e0c0606b2f83b38cb93c9c3ff51232",
-    "semantic_hash": ""
-  },
-  "backup/script.html": {
-    "mtime": 1781349010.8319225,
-    "ast_hash": "31c28a52ab160bdc2466b5ec8f9b9c90",
-    "semantic_hash": ""
-  },
-  "backup/styles.html": {
-    "mtime": 1781349024.5896146,
-    "ast_hash": "59fe4f90f7955391d2d44068ff0287d4",
+    "mtime": 1782385505.02188,
+    "ast_hash": "7045717842b890ca51eebeeaa25ce385",
     "semantic_hash": ""
   },
   "script.html": {
-    "mtime": 1781679650.6360114,
-    "ast_hash": "0f44da9685e508e854bcf903778ccae2",
+    "mtime": 1782387350.3560624,
+    "ast_hash": "e49cd7e00826097e835df31f0da9c10d",
     "semantic_hash": ""
   },
   "styles.html": {
-    "mtime": 1781356488.0441887,
-    "ast_hash": "2ac36f39dddab74fa5809750c8cc6ad8",
+    "mtime": 1782128748.6216137,
+    "ast_hash": "b82b1b3701cffdf085fcaa3224152f6e",
     "semantic_hash": ""
   },
   "documentation.md": {

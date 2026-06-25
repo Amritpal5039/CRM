@@ -272,9 +272,9 @@
     const otherCount = stats.otherGroup ||
       (stats.pending + stats.followUp + stats.notInterested + stats.callNotAnswered + (stats.callDropped || 0));
 
-    // Total confirmed across all arrival statuses
     const confirmedTotal = stats.confirmed ||
-      (stats.confirmedReached + (stats.confirmedNotReached || 0) + stats.confirmedClosed + (stats.confirmedWithoutReg || 0));
+      (stats.confirmedReached + (stats.confirmedNotReached || 0) + (stats.confirmedWithoutReg || 0));
+    const closedTotal = (stats.closed || 0) + (stats.confirmedClosed || 0);
 
     const labels = [
       'Total Enquiries',
@@ -282,7 +282,6 @@
       'Gen Inquiry',
       'Pat Will Contact',
       'Confirmed',
-      'Conf – Closed',
       'Closed'
     ];
     const data = [
@@ -291,8 +290,7 @@
       stats.generalInquiry,
       stats.patientWillContact,
       confirmedTotal,
-      stats.confirmedClosed,
-      stats.closed
+      closedTotal
     ];
     const bgColors = [
       '#006A7F',  // Total – teal
@@ -300,7 +298,6 @@
       '#00bcd4',  // Gen Inquiry – cyan
       '#8e24aa',  // Pat Will Contact – purple
       '#1565c0',  // Confirmed total – dark blue
-      '#e53935',  // Conf Closed – red
       '#9e9e9e'   // Closed – grey
     ];
 
@@ -339,8 +336,14 @@
                 if (ctx.dataIndex === 4) {
                   return [
                     '  Reached: ' + stats.confirmedReached,
-                    '  Closed: ' + stats.confirmedClosed,
                     '  Pending Arrival: ' + ((stats.confirmedWithoutReg || 0) + (stats.confirmedNotReached || 0))
+                  ];
+                }
+                // Hover "Closed" bar — show status and confirmed+closed contributions
+                if (ctx.dataIndex === 5) {
+                  return [
+                    '  Closed: ' + (stats.closed || 0),
+                    '  Confirmed + Closed: ' + (stats.confirmedClosed || 0)
                   ];
                 }
                 return [];
@@ -649,9 +652,18 @@
     const regIdRow = data.registrationId
       ? `<div class="ud-row"><div class="ud-label">Registration ID:</div><div class="ud-value">${data.registrationId}</div></div>` : '';
 
+    let deleteBtnHtml = '';
+    if (isCurrentUserAdmin) {
+      deleteBtnHtml = `
+        <button type="button" class="btn btn-outline" style="color: #b3261e; border-color: #f6b9b4; background: #fce8e6; display: flex; align-items: center; gap: 5px; font-size: 12px; padding: 6px 12px;" onclick="handleDeleteClient('${data.clientId}')">
+          <span class="material-icons" style="font-size: 16px;">delete</span> Delete Client
+        </button>
+      `;
+    }
+
     body.innerHTML = `
       <div class="detail-body">
-        <div class="detail-summary">
+        <div class="detail-summary" style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <div class="detail-eyebrow">Client Profile</div>
             <div style="margin-top: 6px;">
@@ -662,7 +674,10 @@
               <a href="tel:${data.phone}" style="color: var(--primary); text-decoration: none;">${data.phone}</a>
             </div>
           </div>
-          <div class="detail-chip">${totalLeads} lead${totalLeads !== 1 ? 's' : ''}</div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+            <div class="detail-chip">${totalLeads} lead${totalLeads !== 1 ? 's' : ''}</div>
+            ${deleteBtnHtml}
+          </div>
         </div>
 
         <div class="ud-meta-grid">
@@ -680,6 +695,33 @@
         </div>
       </div>
     `;
+  }
+
+  function handleDeleteClient(clientId) {
+    if (!clientId || !isCurrentUserAdmin) return;
+    
+    if (confirm('Are you sure you want to permanently delete this client and all their leads? This action cannot be undone.')) {
+      const btn = document.querySelector('[onclick*="handleDeleteClient"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons" style="font-size: 16px;">delete</span> Deleting...';
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+           closeClientDetailPage();
+           alert('Client and all associated leads deleted successfully');
+           if (typeof fetchAllClients === 'function') fetchAllClients();
+        })
+        .withFailureHandler(function(error) {
+           if (btn) {
+             btn.disabled = false;
+             btn.innerHTML = '<span class="material-icons" style="font-size: 16px;">delete</span> Delete Client';
+           }
+           alert('Error deleting client: ' + error.message);
+        })
+        .deleteClient(clientId, currentUsername);
+    }
   }
 
   // --- All Leads ---
@@ -1180,11 +1222,14 @@
     `;
   }
 
+  let currentCheckResults = null;
+
   function resetAddDataFlow() {
     document.getElementById('phone-check-container').style.display = 'block';
     document.getElementById('existing-client-container').style.display = 'none';
     document.getElementById('new-client-container').style.display = 'none';
-    renderExistingOpenLead(null);
+    document.getElementById('add-lead-for-selected-client').style.display = 'none';
+    document.getElementById('existing-clients-list').innerHTML = '';
     
     document.getElementById('check-phone').value = '';
     document.getElementById('verify-message').style.display = 'none';
@@ -1194,6 +1239,7 @@
     
     document.getElementById('add-data-form').reset();
     document.getElementById('add-message').style.display = 'none';
+    currentCheckResults = null;
   }
 
   function verifyClientPhone() {
@@ -1216,19 +1262,59 @@
         document.getElementById('phone-check-container').style.display = 'none';
         
         if (response.exists) {
-          const c = response.client;
+          currentCheckResults = response.clients;
           document.getElementById('existing-client-container').style.display = 'block';
-          document.getElementById('existing-clientId').value = c.clientId;
-          document.getElementById('existing-client-details').innerHTML = `
-            <strong>Name:</strong> ${escapeHtml(c.name)} <br>
-            <strong>City:</strong> ${escapeHtml(c.city)} <br>
-            <strong>Phone:</strong> ${escapeHtml(c.phone)} <br>
-            <strong>First Enq Date:</strong> ${escapeHtml(c.enqDate)}
-          `;
-          renderExistingOpenLead(response.openLead);
+          document.getElementById('add-lead-for-selected-client').style.display = 'none';
+          document.getElementById('existing-cancel-container').style.display = 'block';
           
-          // Pre-fill today's date for convenience
-          document.getElementById('ex-enquiryDate').valueAsDate = new Date();
+          let html = '';
+          response.clients.forEach(function(item) {
+            const c = item.client;
+            const ol = item.openLead;
+            
+            let clientDetailsHtml = `
+              <div class="client-select-card" style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                  <div>
+                    <strong style="font-size: 18px; color: var(--primary);">${escapeHtml(c.name)}</strong> 
+                    <span style="font-size: 13px; color: var(--text-light); margin-left: 5px;">(ID: ${escapeHtml(c.clientId)})</span>
+                    <div style="margin-top: 8px; font-size: 14px; color: var(--text-dark); line-height: 1.5;">
+                      <strong>City:</strong> ${escapeHtml(c.city)} <br>
+                      <strong>Phone:</strong> ${escapeHtml(c.phone)} <br>
+                      <strong>First Enq Date:</strong> ${escapeHtml(c.enqDate)}
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-outline" style="border-color: var(--primary); color: var(--primary);" onclick="selectClientForLead('${c.clientId}')">Select Client</button>
+                </div>
+            `;
+            
+            if (ol) {
+              const createdLabel = 'Lead Created: ' + (ol.enquiryDate || 'N/A');
+              const cadHtml = ol.contactAgainDate
+                ? `<span><span class="material-icons" style="font-size:16px;">event_repeat</span>CAD: ${escapeHtml(ol.contactAgainDate)}</span>`
+                : '';
+              clientDetailsHtml += `
+                <div class="existing-open-lead" style="margin-top: 15px;">
+                  <button type="button" class="open-lead-card" onclick="openLeadDetailPage(${Number(ol.rowIndex)})" aria-label="Open existing open lead details" style="width: 100%; border: 1px solid #bddce4; background: #f7fbfc; padding: 12px; border-radius: 8px; text-align: left; cursor: pointer;">
+                    <span class="open-lead-title" style="display: flex; align-items: center; gap: 6px; color: var(--primary); font-weight: 700; font-size: 14px; margin-bottom: 5px;">
+                      <span class="material-icons" style="font-size: 18px;">assignment</span>
+                      Open lead found
+                    </span>
+                    <span class="lead-meta" style="display: flex; gap: 15px; font-size: 12px; color: var(--text-light); flex-wrap: wrap;">
+                      <span><span class="material-icons" style="font-size:16px;">calendar_today</span>${escapeHtml(createdLabel)}</span>
+                      ${cadHtml}
+                      ${statusBadge(ol.status)}
+                    </span>
+                    <span class="lead-note" style="display: block; margin-top: 6px; font-size: 13px; color: var(--text-light);"><strong>Last Note:</strong> ${escapeHtml(ol.latestConversation || 'No conversations yet')}</span>
+                  </button>
+                </div>
+              `;
+            }
+            
+            clientDetailsHtml += `</div>`;
+            html += clientDetailsHtml;
+          });
+          document.getElementById('existing-clients-list').innerHTML = html;
           
         } else {
           document.getElementById('new-client-container').style.display = 'block';
@@ -1244,6 +1330,33 @@
         msg.style.display = 'block';
       })
       .checkPhoneExists(phone);
+  }
+
+  function selectClientForLead(clientId) {
+    if (!currentCheckResults) return;
+    const item = currentCheckResults.find(function(x) { return x.client.clientId === clientId; });
+    if (!item) return;
+    const c = item.client;
+    document.getElementById('existing-clientId').value = c.clientId;
+    document.getElementById('add-lead-title').textContent = `Add Lead for ${c.name}`;
+    document.getElementById('add-lead-for-selected-client').style.display = 'block';
+    document.getElementById('existing-cancel-container').style.display = 'none';
+    document.getElementById('ex-enquiryDate').valueAsDate = new Date();
+    document.getElementById('add-lead-for-selected-client').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function cancelSelectedClientLead() {
+    document.getElementById('add-lead-for-selected-client').style.display = 'none';
+    document.getElementById('existing-cancel-container').style.display = 'block';
+    document.getElementById('add-lead-existing-form').reset();
+  }
+
+  function showNewClientFormForExistingNumber() {
+    const phone = document.getElementById('check-phone').value.trim();
+    document.getElementById('existing-client-container').style.display = 'none';
+    document.getElementById('new-client-container').style.display = 'block';
+    document.getElementById('phone').value = phone; // Pre-fill phone
+    document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
   }
 
   function handleAddLeadExisting(event) {

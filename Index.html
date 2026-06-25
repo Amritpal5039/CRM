@@ -95,8 +95,9 @@
 
           <div class="stats-cards">
             <div class="stat-card">
-              <h3>Overall Conversion</h3>
+              <h3>Overall Conversion Rate</h3>
               <div id="stat-conv-overall" class="stat-value text-success">0%</div>
+              <div class="stat-helper">Target Conversion Rate: <span class="stat-target">25%</span></div>
             </div>
             <div class="stat-card" style="grid-column: span 2;">
               <h3>Top 5 Lead Cities</h3>
@@ -215,33 +216,44 @@
             <div id="verify-message" class="message"></div>
           </div>
 
-          <div class="form-container" id="existing-client-container" style="display: none; margin-top: 20px; border-left: 4px solid var(--primary);">
-            <h3>Existing Client Found</h3>
-            <p id="existing-client-details" style="margin: 15px 0; color: var(--text-light); line-height: 1.6;"></p>
-            <div id="existing-open-lead" class="existing-open-lead" style="display: none;"></div>
+          <div class="form-container" id="existing-client-container" style="display: none; margin-top: 20px; border-left: 4px solid var(--primary); position: relative; max-width: 700px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+              <h3 style="margin: 0;">Existing Clients Found</h3>
+              <button type="button" class="btn btn-primary" onclick="showNewClientFormForExistingNumber()" id="add-new-client-btn">Add new client</button>
+            </div>
             
-            <form id="add-lead-existing-form" onsubmit="handleAddLeadExisting(event)">
-              <input type="hidden" id="existing-clientId">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label>Enquiry Date</label>
-                  <input type="date" id="ex-enquiryDate" required>
+            <div id="existing-clients-list" style="margin-top: 15px;"></div>
+            
+            <!-- Add lead form for the selected client -->
+            <div id="add-lead-for-selected-client" style="display: none; margin-top: 25px; padding-top: 25px; border-top: 1px solid var(--border);">
+              <h4 id="add-lead-title" style="margin-bottom: 15px; color: var(--primary);">Add Lead for Client</h4>
+              <form id="add-lead-existing-form" onsubmit="handleAddLeadExisting(event)">
+                <input type="hidden" id="existing-clientId">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>Enquiry Date</label>
+                    <input type="date" id="ex-enquiryDate" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Lead By</label>
+                    <select id="ex-leadBy" required>
+                      <option value="" disabled selected>Select Lead By</option>
+                      <option value="Call">Call</option>
+                      <option value="Text">Text</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Lead By</label>
-                  <select id="ex-leadBy" required>
-                    <option value="" disabled selected>Select Lead By</option>
-                    <option value="Call">Call</option>
-                    <option value="Text">Text</option>
-                  </select>
+                <div class="form-group mt-20" style="display: flex; gap: 10px;">
+                  <button type="button" class="btn btn-outline flex-1" onclick="cancelSelectedClientLead()">Cancel Selection</button>
+                  <button type="submit" class="btn btn-primary flex-1" id="submit-existing-btn">Create Lead for Client</button>
                 </div>
-              </div>
-              <div class="form-group mt-20">
-                <button type="submit" class="btn btn-primary w-100" id="submit-existing-btn">Create Lead for Client</button>
-                <button type="button" class="btn btn-outline w-100 mt-20" onclick="resetAddDataFlow()">Cancel / Start Over</button>
-              </div>
-              <div id="existing-message" class="message"></div>
-            </form>
+                <div id="existing-message" class="message"></div>
+              </form>
+            </div>
+            
+            <div class="form-group mt-20" id="existing-cancel-container">
+              <button type="button" class="btn btn-outline w-100" onclick="resetAddDataFlow()">Cancel / Start Over</button>
+            </div>
           </div>
 
           <div class="form-container" id="new-client-container" style="display: none; margin-top: 20px;">

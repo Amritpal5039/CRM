@@ -184,17 +184,74 @@ function deleteLead(rowIndex, username) {
   return { success: true, message: "Lead deleted successfully." };
 }
 
-// Helper to get client by phone
-function getClientByPhone(phone) {
+// Admin only function to delete a client and all their leads
+function deleteClient(clientId, username) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const idSheet = ss.getSheetByName("ID");
+  let isAuthorized = false;
+
+  if (idSheet) {
+    const data = idSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] == username) {
+        const role = String(data[i][3] || "").trim().toLowerCase();
+        if (role === 'admin' || username === 'admin') {
+          isAuthorized = true;
+        }
+        break;
+      }
+    }
+  }
+
+  if (!isAuthorized) {
+    throw new Error("Unauthorized: Only users with the Admin role can delete clients.");
+  }
+
+  const clientsSheet = getClientsSheet();
+  const clientsData = clientsSheet.getDataRange().getValues();
+  let clientRowIndex = -1;
+
+  for (let i = 1; i < clientsData.length; i++) {
+    if (clientsData[i][0] === clientId) {
+      clientRowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (clientRowIndex === -1) {
+    throw new Error("Client not found.");
+  }
+
+  // Delete the client row
+  clientsSheet.deleteRow(clientRowIndex);
+
+  // Now delete all leads associated with this client
+  const leadsSheet = getLeadsSheet();
+  let leadsData = leadsSheet.getDataRange().getValues();
+  
+  // Delete rows looping backwards
+  for (let i = leadsData.length - 1; i >= 1; i--) {
+    if (leadsData[i][1] === clientId) {
+      leadsSheet.deleteRow(i + 1);
+    }
+  }
+
+  return { success: true, message: "Client and all associated leads deleted successfully." };
+}
+
+// Helper to get all clients by phone
+function getClientsByPhone(phone) {
   const clientsSheet = getClientsSheet();
   const data = clientsSheet.getDataRange().getValues();
+  const clients = [];
+  const searchPhone = String(phone).trim();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][3]).trim() === String(phone).trim()) {
+    if (String(data[i][3]).trim() === searchPhone) {
       let enqDateStr = data[i][5];
       if (enqDateStr instanceof Date) {
          enqDateStr = Utilities.formatDate(enqDateStr, Session.getScriptTimeZone(), "yyyy-MM-dd");
       }
-      return {
+      clients.push({
         rowIndex: i + 1,
         clientId: data[i][0],
         name: data[i][1],
@@ -203,10 +260,16 @@ function getClientByPhone(phone) {
         regId: data[i][4],
         enqDate: enqDateStr,
         source: data[i][6]
-      };
+      });
     }
   }
-  return null;
+  return clients;
+}
+
+// Backward compatible wrapper
+function getClientByPhone(phone) {
+  const list = getClientsByPhone(phone);
+  return list.length > 0 ? list[0] : null;
 }
 
 function isOpenLeadRow(row) {
@@ -263,12 +326,17 @@ function getLastOpenLeadForClient(clientId) {
 
 // Called from UI when caller enters phone number
 function checkPhoneExists(phone) {
-  const client = getClientByPhone(phone);
-  if (client) {
+  const clients = getClientsByPhone(phone);
+  if (clients.length > 0) {
+    const results = clients.map(function(client) {
+      return {
+        client: client,
+        openLead: getLastOpenLeadForClient(client.clientId)
+      };
+    });
     return {
       exists: true,
-      client: client,
-      openLead: getLastOpenLeadForClient(client.clientId)
+      clients: results
     };
   }
   return { exists: false };
@@ -276,79 +344,143 @@ function checkPhoneExists(phone) {
 
 // Add new lead for existing client
 function addLeadForExistingClient(clientId, data) {
-  const clientsSheet = getClientsSheet();
-  const leadsSheet = getLeadsSheet();
-  const leadId = Utilities.getUuid();
-  const clientsData = clientsSheet.getDataRange().getValues();
-  let client = null;
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    throw new Error("Could not obtain database lock. Please try again.");
+  }
+  
+  try {
+    const clientsSheet = getClientsSheet();
+    const leadsSheet = getLeadsSheet();
+    const clientsData = clientsSheet.getDataRange().getValues();
+    let client = null;
 
-  for (let i = 1; i < clientsData.length; i++) {
-    if (clientsData[i][0] === clientId) {
-      client = clientsData[i];
-      break;
+    for (let i = 1; i < clientsData.length; i++) {
+      if (clientsData[i][0] === clientId) {
+        client = clientsData[i];
+        break;
+      }
+    }
+
+    if (!client) {
+      throw new Error("Client not found.");
+    }
+    
+    const leadId = getNextLeadId(clientId);
+    
+    leadsSheet.appendRow([
+      leadId,
+      clientId,
+      data.enquiryDate,
+      client[6] || "", // Returning leads keep the client's original source.
+      "Pending", // Default Status
+      "", // Branch
+      "", // Contact Again Date
+      "[]", // empty conversations JSON
+      data.leadBy || "", 
+      "Returning",
+      "" // Arrival Status
+    ]);
+    
+    return { success: true, message: "New lead added to existing client successfully." };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Helper to generate sequential client ID
+function getNextClientId() {
+  const clientsSheet = getClientsSheet();
+  const data = clientsSheet.getDataRange().getValues();
+  let maxNum = 0;
+  for (let i = 1; i < data.length; i++) {
+    const cid = String(data[i][0]);
+    const match = cid.match(/^SDC-(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) {
+        maxNum = num;
+      }
     }
   }
+  const nextNum = maxNum + 1;
+  const paddedNum = String(nextNum).padStart(3, '0');
+  return `SDC-${paddedNum}`;
+}
 
-  if (!client) {
-    throw new Error("Client not found.");
+// Helper to generate sequential lead ID for a client
+function getNextLeadId(clientId) {
+  if (!clientId.startsWith("SDC-")) {
+    return Utilities.getUuid();
   }
   
-  leadsSheet.appendRow([
-    leadId,
-    clientId,
-    data.enquiryDate,
-    client[6] || "", // Returning leads keep the client's original source.
-    "Pending", // Default Status
-    "", // Branch
-    "", // Contact Again Date
-    "[]", // empty conversations JSON
-    data.leadBy || "", 
-    "Returning",
-    "" // Arrival Status
-  ]);
+  const leadsSheet = getLeadsSheet();
+  const data = leadsSheet.getDataRange().getValues();
+  let maxLeadNum = 0;
   
-  return { success: true, message: "New lead added to existing client successfully." };
+  const prefix = clientId + "-";
+  for (let i = 1; i < data.length; i++) {
+    const lid = String(data[i][0]);
+    if (lid.startsWith(prefix)) {
+      const suffix = lid.substring(prefix.length);
+      const num = parseInt(suffix, 10);
+      if (!isNaN(num) && num > maxLeadNum) {
+        maxLeadNum = num;
+      }
+    }
+  }
+  const nextLeadNum = maxLeadNum + 1;
+  const paddedLeadNum = String(nextLeadNum).padStart(2, '0');
+  return `${clientId}-${paddedLeadNum}`;
 }
 
 // Add completely new client and their first lead
 function addCustomer(data) {
-  const clientsSheet = getClientsSheet();
-  const leadsSheet = getLeadsSheet();
-  
-  // Check if they slipped through
-  if (getClientByPhone(data.phone)) {
-     return { success: false, message: "Client already exists. Please use 'Add Lead to Existing Client'." };
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, message: "Could not obtain database lock. Please try again." };
   }
-
-  const clientId = Utilities.getUuid();
-  const leadId = Utilities.getUuid();
-
-  clientsSheet.appendRow([
-    clientId,
-    data.name,
-    data.city,
-    data.phone,
-    "", // Reg ID
-    data.enquiryDate,
-    data.source,
-    "[]" // Edit History
-  ]);
   
-  leadsSheet.appendRow([
-    leadId,
-    clientId,
-    data.enquiryDate,
-    data.source,
-    "Pending", // Default Status
-    "", // Branch
-    "", // Contact Again Date
-    "[]", // empty conversations JSON
-    data.leadBy || "", // Lead By
-    "New",
-    "" // Arrival Status
-  ]);
+  try {
+    const clientsSheet = getClientsSheet();
+    const leadsSheet = getLeadsSheet();
+    
+    const clientId = getNextClientId();
+    const leadId = getNextLeadId(clientId);
 
-  return { success: true, message: "New client and lead created successfully" };
+    clientsSheet.appendRow([
+      clientId,
+      data.name,
+      data.city,
+      data.phone,
+      "", // Reg ID
+      data.enquiryDate,
+      data.source,
+      "[]" // Edit History
+    ]);
+    
+    leadsSheet.appendRow([
+      leadId,
+      clientId,
+      data.enquiryDate,
+      data.source,
+      "Pending", // Default Status
+      "", // Branch
+      "", // Contact Again Date
+      "[]", // empty conversations JSON
+      data.leadBy || "", // Lead By
+      "New",
+      "" // Arrival Status
+    ]);
+
+    return { success: true, message: "New client and lead created successfully (" + clientId + ")" };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function formatDateToDayMonthYear(dateObj) {
@@ -397,7 +529,7 @@ function getFilteredClients(params) {
   }
 
   let results = [];
-  const uniquePhones = new Set();
+  const uniqueClientIds = new Set();
   
   // Sort to process newer entries first, or keep order. We'll loop normally
   for(let i=1; i < clientsData.length; i++) {
@@ -408,12 +540,11 @@ function getFilteredClients(params) {
     // Discard clients with 0 leads
     if (count === 0) continue;
     
+    if (uniqueClientIds.has(cid)) continue;
+    uniqueClientIds.add(cid);
+    
     const phoneRaw = String(row[3]).trim();
     const phone = phoneRaw.toLowerCase();
-    
-    // Prevent UI duplicates if they somehow exist in DB
-    if (uniquePhones.has(phone)) continue;
-    uniquePhones.add(phone);
     
     let match = true;
     const name = String(row[1]).toLowerCase();
@@ -1043,9 +1174,10 @@ function getDashboardStats(startDateStr, endDateStr) {
   Object.keys(stats.timeline).sort().forEach((k) => { sortedTimeline[k] = stats.timeline[k]; });
   
   stats.timeline = sortedTimeline;
-  stats.confirmed = stats.confirmedReached + stats.confirmedNotReached + stats.confirmedClosed + stats.confirmedWithoutReg;
+  stats.confirmed = stats.confirmedReached + stats.confirmedNotReached + stats.confirmedWithoutReg;
+  stats.closedTotal = stats.closed + stats.confirmedClosed;
   
-  stats.overallConversionRate = stats.total > 0 ? (((stats.newLeadsConverted + stats.returningLeadsReengaged) / stats.total) * 100).toFixed(2) : "0.00";
+  stats.overallConversionRate = stats.total > 0 ? ((stats.confirmedReached / stats.total) * 100).toFixed(2) : "0.00";
   stats.newClientConversionRate = stats.newLeadsTotal > 0 ? ((stats.newLeadsConverted / stats.newLeadsTotal) * 100).toFixed(2) : "0.00";
   stats.returningReengagementRate = stats.returningLeadsTotal > 0 ? ((stats.returningLeadsReengaged / stats.returningLeadsTotal) * 100).toFixed(2) : "0.00";
 
