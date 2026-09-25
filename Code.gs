@@ -59,8 +59,19 @@ function getLeadsSheet() {
       "Conversations",
       "Lead By",
       "Client Type", // "New" or "Returning"
-      "Arrival Status" // "Reached", "Not Reached", "Closed"
+      "Arrival Status", // "Reached", "Not Reached", "Closed"
+      "Handled By" // Logged-in user who created / handles the lead
     ]);
+  } else {
+    // Ensure column 12 is initialized as "Handled By"
+    if (sheet.getLastColumn() < 12) {
+      sheet.getRange(1, 12).setValue("Handled By");
+    } else {
+      const headerVal = sheet.getRange(1, 12).getValue();
+      if (!headerVal) {
+        sheet.getRange(1, 12).setValue("Handled By");
+      }
+    }
   }
   return sheet;
 }
@@ -381,7 +392,8 @@ function addLeadForExistingClient(clientId, data) {
       "[]", // empty conversations JSON
       data.leadBy || "", 
       "Returning",
-      "" // Arrival Status
+      "", // Arrival Status
+      data.handledBy || "" // Handled By
     ]);
     SpreadsheetApp.flush();
     const leadRowIndex = leadsSheet.getLastRow();
@@ -484,7 +496,8 @@ function addCustomer(data) {
       "[]", // empty conversations JSON
       data.leadBy || "", // Lead By
       "New",
-      "" // Arrival Status
+      "", // Arrival Status
+      data.handledBy || "" // Handled By
     ]);
     SpreadsheetApp.flush();
     const leadRowIndex = leadsSheet.getLastRow();
@@ -651,7 +664,14 @@ function getFilteredLeads(params) {
     const contactAgain = row[6];
     const leadBy = row[8];
     const clientType = row[9];
+    const handledBy = String(row[11] || "").trim();
     const regId = String(client.regId || "").trim();
+
+    // Handled By filter
+    if (match && params.handledBy) {
+      const filterHandledBy = String(params.handledBy).trim().toLowerCase();
+      if (filterHandledBy && !handledBy.toLowerCase().includes(filterHandledBy)) match = false;
+    }
 
     // Status filters
     if (excludeConfirmed && statusStr.toLowerCase() === "confirmed") match = false;
@@ -759,6 +779,7 @@ function getFilteredLeads(params) {
         leadBy: leadBy,
         clientType: clientType,
         arrivalStatus: String(row[10] || "").trim(),
+        handledBy: handledBy,
         rawDateForSort: enqDate instanceof Date ? enqDate.getTime() : new Date(enqDate || 0).getTime(),
       });
     }
@@ -832,6 +853,8 @@ function getClientDetailsWithLeads(clientId) {
         latestConversation: latestConv,
         leadBy: row[8],
         clientType: row[9],
+        arrivalStatus: String(row[10] || "").trim(),
+        handledBy: String(row[11] || "").trim(),
         rawDate: row[2] instanceof Date ? row[2].getTime() : new Date(row[2] || 0).getTime()
       });
     }
@@ -860,7 +883,7 @@ function getUserDetails(leadRowIndex, leadId) {
   let leadRow = null;
 
   if (!isNaN(rIndex) && rIndex > 1 && rIndex <= leadsSheet.getLastRow()) {
-    const row = leadsSheet.getRange(rIndex, 1, 1, 11).getValues()[0];
+    const row = leadsSheet.getRange(rIndex, 1, 1, 12).getValues()[0];
     if (!leadId || String(row[0]) === String(leadId)) {
       leadRow = row;
     }
@@ -936,6 +959,7 @@ function getUserDetails(leadRowIndex, leadId) {
     leadBy: leadRow[8] || "",
     clientType: leadRow[9] || "",
     arrivalStatus: String(leadRow[10] || "").trim(),
+    handledBy: String(leadRow[11] || "").trim(),
     editHistory: editHistory
   };
 }
@@ -954,7 +978,8 @@ function addConversation(
   originalName,
   originalCity,
   clientRowIndex,
-  arrivalStatus
+  arrivalStatus,
+  handledBy
 ) {
   const rIndex = parseInt(leadRowIndex, 10);
   const cIndex = parseInt(clientRowIndex, 10);
@@ -981,6 +1006,9 @@ function addConversation(
   if (branch !== undefined) leadsSheet.getRange(rIndex, 6).setValue(branch);
   if (contactAgainDate !== undefined) leadsSheet.getRange(rIndex, 7).setValue(contactAgainDate);
   if (arrivalStatus !== undefined) leadsSheet.getRange(rIndex, 11).setValue(arrivalStatus);
+  if (handledBy !== undefined && handledBy !== null && String(handledBy).trim() !== "") {
+    leadsSheet.getRange(rIndex, 12).setValue(String(handledBy).trim());
+  }
   
   // Update Client
   if (registrationId !== undefined) clientsSheet.getRange(cIndex, 5).setValue(registrationId);
@@ -1043,7 +1071,8 @@ function addConversation(
     contactAgainDate: contactAgainDate,
     registrationId: registrationId,
     name: name,
-    city: city
+    city: city,
+    handledBy: handledBy
   };
 }
 
@@ -1310,4 +1339,32 @@ function getDashboardStats(startDateStr, endDateStr) {
   } catch (e) {}
 
   return stats;
+}
+
+// Retrieves all distinct users/handlers from ID sheet and Leads sheet for filter dropdowns
+function getAppUsers() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const idSheet = ss.getSheetByName("ID");
+  const users = [];
+  if (idSheet && idSheet.getLastRow() > 1) {
+    const data = idSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      const uname = String(data[i][0] || "").trim();
+      const name = String(data[i][2] || uname).trim();
+      if (name && !users.includes(name)) {
+        users.push(name);
+      }
+    }
+  }
+  const leadsSheet = ss.getSheetByName(LEADS_SHEET);
+  if (leadsSheet && leadsSheet.getLastRow() > 1 && leadsSheet.getLastColumn() >= 12) {
+    const leadHandlers = leadsSheet.getRange(2, 12, leadsSheet.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < leadHandlers.length; i++) {
+      const h = String(leadHandlers[i][0] || "").trim();
+      if (h && !users.includes(h)) {
+        users.push(h);
+      }
+    }
+  }
+  return users.sort();
 }

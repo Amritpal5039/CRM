@@ -1,16 +1,16 @@
-# Graph Report - CRM  (2026-07-01)
+# Graph Report - CRM  (2026-09-25)
 
 ## Corpus Check
-- 143 files · ~138,820 words
+- 143 files · ~141,309 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1425 nodes · 1283 edges · 153 communities (139 shown, 14 thin omitted)
+- 1427 nodes · 1285 edges · 153 communities (139 shown, 14 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `90da2193`
+- Built from commit: `27b74bfc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -170,8 +170,8 @@
 - [[_COMMUNITY_Community 152|Community 152]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `How to implement` - 22 edges
-2. `Google Apps Script Web App: Code.gs Documentation` - 22 edges
+1. `Google Apps Script Web App: Code.gs Documentation` - 23 edges
+2. `How to implement` - 22 edges
 3. `How to implement` - 20 edges
 4. `Accessibility Coding Guidelines` - 13 edges
 5. `How to implement` - 13 edges
@@ -742,11 +742,11 @@ Cohesion: 0.50
 Nodes (3): Fallback strategies, Moving an element with state, Moving custom elements (Web Components)
 
 ### Community 151 - "Community 151"
-Cohesion: 0.05
-Nodes (42): 10. `getClientByPhone`, 11. `checkPhoneExists`, 12. `addLeadForExistingClient`, 13. `addCustomer`, 14. `formatDateToDayMonthYear`, 15. `getFilteredClients`, 16. `getFilteredLeads`, 17. `getClientDetailsWithLeads` (+34 more)
+Cohesion: 0.04
+Nodes (44): 10. `getClientByPhone`, 11. `checkPhoneExists`, 12. `addLeadForExistingClient`, 13. `addCustomer`, 14. `formatDateToDayMonthYear`, 15. `getFilteredClients`, 16. `getFilteredLeads`, 17. `getClientDetailsWithLeads` (+36 more)
 
 ## Knowledge Gaps
-- **914 isolated node(s):** `graphify`, `Code.gs Boilerplate`, `Index.html Boilerplate`, `Read Optimizations (In-Memory Processing)`, `Write Optimizations (Transactional Concurrency & Locking)` (+909 more)
+- **915 isolated node(s):** `graphify`, `Code.gs Boilerplate`, `Index.html Boilerplate`, `Read Optimizations (In-Memory Processing)`, `Write Optimizations (Transactional Concurrency & Locking)` (+910 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -756,7 +756,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `Accessibility Coding Guidelines` connect `Community 88` to `Community 89`, `Community 132`, `Community 90`, `Community 119`, `Community 120`, `Community 121`, `Community 122`, `Community 123`, `Community 124`, `Community 125`, `Community 126`?**
   _High betweenness centrality (0.002) - this node is a cross-community bridge._
 - **What connects `graphify`, `Code.gs Boilerplate`, `Index.html Boilerplate` to the rest of the system?**
-  _914 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _915 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.047619047619047616 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**

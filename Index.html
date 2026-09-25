@@ -171,6 +171,13 @@
                 <option value="Khalsa">Khalsa</option>
               </select>
             </div>
+            <div class="filter-group">
+              <label>Handled By</label>
+              <select id="al-filter-handled-by" onchange="fetchAllLeads(1)">
+                <option value="">All Handlers</option>
+                <option value="__my_leads__">My Leads</option>
+              </select>
+            </div>
             <div class="filter-group" id="al-reg-filter-group" style="display: none;">
               <label>Confirmation Detail</label>
               <select id="al-filter-reg" onchange="fetchAllLeads(1)">
@@ -250,6 +257,10 @@
                       <option value="Text">Text</option>
                     </select>
                   </div>
+                  <div class="form-group full-width">
+                    <label>Handled By</label>
+                    <input type="text" id="ex-handledBy" readonly style="background: #f0f0f3; cursor: not-allowed; font-weight: 500;" title="Auto-fetched from logged-in user">
+                  </div>
                 </div>
                 <div class="form-group mt-20" style="display: flex; gap: 10px;">
                   <button type="button" class="btn btn-outline flex-1" onclick="cancelSelectedClientLead()">Cancel Selection</button>
@@ -301,6 +312,10 @@
                     <option value="Call">Call</option>
                     <option value="Text">Text</option>
                   </select>
+                </div>
+                <div class="form-group full-width">
+                  <label for="handledBy">Handled By</label>
+                  <input type="text" id="handledBy" name="handledBy" readonly style="background: #f0f0f3; cursor: not-allowed; font-weight: 500;" title="Auto-fetched from logged-in user">
                 </div>
                 <div class="form-group full-width">
                   <label for="source">Source</label>

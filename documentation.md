@@ -25,6 +25,7 @@ This document provides a comprehensive overview of the server-side Google Apps S
 18. [getUserDetails](#18-getuserdetails)
 19. [addConversation](#19-addconversation)
 20. [getDashboardStats](#20-getdashboardstats)
+21. [getAppUsers](#21-getappusers)
 
 ---
 
@@ -205,7 +206,7 @@ Inserts a new lead entry for an already registered client in the `"Leads"` sheet
 
 * **Parameters:**
   * `clientId` (String): The unique ID of the target client.
-  * `data` (Object): Contains lead criteria (`enquiryDate`, `source`, `leadBy`).
+  * `data` (Object): Contains lead criteria (`enquiryDate`, `source`, `leadBy`, `handledBy`).
 * **Returns:** `Object` — `{ success: true, message: "New lead added to existing client successfully." }`
 * **Google Services Used:**
   * `SpreadsheetApp` (to write range data)
@@ -221,7 +222,7 @@ Inserts a new lead entry for an already registered client in the `"Leads"` sheet
 Handles adding a brand-new client along with their first lead record. Validates that the phone number doesn't already exist before writing records.
 
 * **Parameters:**
-  * `data` (Object): Map containing client and lead details (`phone`, `name`, `city`, `enquiryDate`, `source`, `leadBy`).
+  * `data` (Object): Map containing client and lead details (`phone`, `name`, `city`, `enquiryDate`, `source`, `leadBy`, `handledBy`).
 * **Returns:** `Object` — `{ success: true, message: String }` or `{ success: false, message: String }` on duplicate match.
 * **Google Services Used:**
   * `SpreadsheetApp` (to read/write client and lead databases)
@@ -264,10 +265,10 @@ Retrieves a filtered list of clients from the `"Clients"` sheet. Aggregates the 
 ## 16. `getFilteredLeads`
 
 ### Description
-A unified function for querying leads from the `"Leads"` sheet. Merges client information and provides complex filters: text queries (Name, Phone, City), date bounds (Start/End date), status filters, today-only call listings, pagination (20 items per page), and sorting orders.
+A unified function for querying leads from the `"Leads"` sheet. Merges client information and provides complex filters: text queries (Name, Phone, City), date bounds (Start/End date), status filters, handler filter (`handledBy`), today-only call listings, pagination (20 items per page), and sorting orders.
 
 * **Parameters:**
-  * `params` (Object): Filtering configurations (`name`, `phone`, `city`, `isTodayOnly`, `excludeConfirmed`, `requireStatus`, `status`, `regIdFilter`, `startDate`, `endDate`, `sortOrder`, `page`).
+  * `params` (Object): Filtering configurations (`name`, `phone`, `city`, `handledBy`, `isTodayOnly`, `excludeConfirmed`, `requireStatus`, `status`, `regIdFilter`, `startDate`, `endDate`, `sortOrder`, `page`).
 * **Returns:** `Object` — `{ leads: Array, totalPages: Number, currentPage: Number, totalItems: Number }`
 * **Google Services Used:**
   * `SpreadsheetApp` (to read dataset ranges)
@@ -301,7 +302,7 @@ Retrieves details for a single lead using its row index. Also looks up and merge
 
 * **Parameters:**
   * `leadRowIndex` (Number): Row index of the lead.
-* **Returns:** `Object` — Merged lead and client fields.
+* **Returns:** `Object` — Merged lead and client fields (including `handledBy`).
 * **Google Services Used:**
   * `SpreadsheetApp` (to read target row ranges)
 * **Potential Errors:**
@@ -313,7 +314,7 @@ Retrieves details for a single lead using its row index. Also looks up and merge
 ## 19. `addConversation`
 
 ### Description
-Performs updates on a lead's record (status, branch, contact again date, arrival status) and client's record (registration ID, name, city). Appends a new conversation entry (with operator name and timestamp) to the lead's history log. If critical client fields (name, city) changed, it generates and logs a change record in the client's edit history.
+Performs updates on a lead's record (status, branch, contact again date, arrival status, handler) and client's record (registration ID, name, city). Appends a new conversation entry (with operator name and timestamp) to the lead's history log. If critical client fields (name, city) changed, it generates and logs a change record in the client's edit history.
 
 * **Parameters:**
   * `leadRowIndex` (Number): Row index of the target lead.
@@ -330,6 +331,7 @@ Performs updates on a lead's record (status, branch, contact again date, arrival
   * `originalCity` (String): Original client city.
   * `clientRowIndex` (Number): Row index of the client.
   * `arrivalStatus` (String): Arrival status update value.
+  * `handledBy` (String, optional): Operator handling the lead.
 * **Returns:** `Object` — Status return payload including updated values, updated conversations log, and edit history.
 * **Google Services Used:**
   * `SpreadsheetApp` (to write cell values)
@@ -356,3 +358,17 @@ Computes aggregated metrics and datasets for the CRM charts and statistics cards
   * `Session` (to match localized timezones)
 * **Potential Errors:**
   * Handled division-by-zero occurrences safely, but invalid date cells can distort computation calculations.
+
+---
+
+## 21. `getAppUsers`
+
+### Description
+Retrieves a sorted list of unique user and handler names across both the `"ID"` credentials table and the `"Leads"` sheet. Used dynamically by frontend filter dropdowns and lead assignment controls.
+
+* **Parameters:** None
+* **Returns:** `Array<String>` — Array of user/handler display names.
+* **Google Services Used:**
+  * `SpreadsheetApp` (to query `"ID"` and `"Leads"` ranges)
+* **Potential Errors:** None (returns empty array fallback).
+

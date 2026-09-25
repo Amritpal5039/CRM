@@ -10,6 +10,130 @@
   let currentClientDetailId = null;
   let appHistoryReady = false;
   let previousSectionId = 'dashboard-section'; // track where we came from before lead detail
+  let cachedAppUsers = [];
+
+  // --- 7-Day Auth Cookie & Session Persistence ---
+  function setAuthCookie(userObj, days = 7) {
+    const d = new Date();
+    d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "expires=" + d.toUTCString();
+    const maxAge = "max-age=" + (days * 24 * 60 * 60);
+    const value = encodeURIComponent(JSON.stringify(userObj));
+    document.cookie = `crm_user_session=${value}; ${expires}; ${maxAge}; path=/; SameSite=Lax`;
+    try {
+      localStorage.setItem('crm_user_session', JSON.stringify({
+        ...userObj,
+        expiresAt: d.getTime()
+      }));
+    } catch (e) {}
+  }
+
+  function getAuthCookie() {
+    let val = null;
+    const name = "crm_user_session=";
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const ca = decodedCookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i].trim();
+      if (c.indexOf(name) === 0) {
+        val = c.substring(name.length, c.length);
+        break;
+      }
+    }
+    if (val) {
+      try {
+        return JSON.parse(val);
+      } catch (e) {}
+    }
+    // Fallback to localStorage (ensures 7-day session in sandboxed iframes)
+    try {
+      const local = localStorage.getItem('crm_user_session');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (!parsed.expiresAt || parsed.expiresAt > Date.now()) {
+          return parsed;
+        } else {
+          localStorage.removeItem('crm_user_session');
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function clearAuthCookie() {
+    document.cookie = "crm_user_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; max-age=0; path=/; SameSite=Lax";
+    try {
+      localStorage.removeItem('crm_user_session');
+    } catch (e) {}
+  }
+
+  function getCurrentUserFromCookie() {
+    const session = getAuthCookie();
+    if (session && session.name) return session.name;
+    return currentUser || '';
+  }
+
+  function populateUsersDropdown(users) {
+    if (Array.isArray(users)) {
+      cachedAppUsers = users;
+    }
+    const filterSelect = document.getElementById('al-filter-handled-by');
+    if (filterSelect) {
+      const currentSelected = filterSelect.value;
+      const myLeadsText = currentUser ? `My Leads (${currentUser})` : 'My Leads';
+      let optionsHtml = `<option value="">All Handlers</option><option value="__my_leads__">${escapeHtml(myLeadsText)}</option>`;
+      
+      cachedAppUsers.forEach(u => {
+        if (u) {
+          optionsHtml += `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`;
+        }
+      });
+      filterSelect.innerHTML = optionsHtml;
+      if (currentSelected) {
+        filterSelect.value = currentSelected;
+      }
+    }
+  }
+
+  function loadUsersList() {
+    google.script.run
+      .withSuccessHandler(populateUsersDropdown)
+      .getAppUsers();
+  }
+
+  function checkAutoLogin() {
+    const session = getAuthCookie();
+    if (session && session.name) {
+      currentUser = session.name;
+      currentUsername = session.username || session.name;
+      isCurrentUserAdmin = Boolean(session.isAdmin);
+
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-container').style.display = 'flex';
+      document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser + (isCurrentUserAdmin ? ' (Admin)' : '');
+
+      initAppHistory();
+      initPhoneInputWatcher();
+      startInactivityTimer();
+      loadUsersList();
+
+      const dashNav = document.querySelector('.nav-links li[data-section="dashboard-section"]');
+      if (dashNav) dashNav.style.display = isCurrentUserAdmin ? '' : 'none';
+
+      if (isCurrentUserAdmin) {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        document.getElementById('dash-end-date').valueAsDate = today;
+        document.getElementById('dash-start-date').valueAsDate = firstDay;
+        fetchDashboardStats();
+      } else {
+        showSection('all-leads-section', document.querySelector('.nav-links li[data-section="all-leads-section"]'), false);
+        fetchAllLeads(1);
+      }
+      return true;
+    }
+    return false;
+  }
 
   // --- Inactivity / Session Keep-Alive ---
   const INACTIVITY_WARNING_MS = 25 * 60 * 1000; // warn at 25 min
@@ -161,12 +285,19 @@
           currentUser = response.name;
           currentUsername = user;
           isCurrentUserAdmin = response.isAdmin;
+          // Set 7-day cookie and storage
+          setAuthCookie({
+            name: currentUser,
+            username: currentUsername,
+            isAdmin: isCurrentUserAdmin
+          }, 7);
           document.getElementById('login-screen').style.display = 'none';
           document.getElementById('app-container').style.display = 'flex';
           document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser + (isCurrentUserAdmin ? ' (Admin)' : '');
           initAppHistory();
           initPhoneInputWatcher();
           startInactivityTimer(); // begin inactivity countdown
+          loadUsersList();
           
           // Show/hide dashboard nav item based on admin status
           const dashNav = document.querySelector('.nav-links li[data-section="dashboard-section"]');
@@ -203,6 +334,7 @@
     currentUsername = null;
     isCurrentUserAdmin = false;
     clearInactivityTimers();
+    clearAuthCookie();
     document.getElementById('login-form').reset();
     setLoginMessage('');
     document.getElementById('app-container').style.display = 'none';
@@ -260,6 +392,12 @@
     if (shouldPushState) pushAppState({ section: sectionId });
 
     if (sectionId === 'add-data-section') {
+      const activeUser = getCurrentUserFromCookie() || currentUser || '';
+      const hEl = document.getElementById('handledBy');
+      if (hEl) hEl.value = activeUser;
+      const exHEl = document.getElementById('ex-handledBy');
+      if (exHEl) exHEl.value = activeUser;
+
       if (element) {
         resetAddDataFlow();
       }
@@ -718,6 +856,10 @@
                 ${statusBadge(lead.status)}
                 <span><span class="material-icons">store</span> ${lead.branch || 'No Branch'}</span>
                 ${arrivalHtml}
+                <span class="lead-handler-badge" title="Handled by ${escapeHtml(lead.handledBy || 'Unassigned')}">
+                  <span class="material-icons" style="font-size: 14px;">person</span>
+                  ${escapeHtml(lead.handledBy || 'Unassigned')}
+                </span>
               </div>
               <div class="lead-note"><strong>Latest Note:</strong> ${lead.latestConversation}</div>
             </div>
@@ -827,11 +969,19 @@
     document.getElementById('al-filter-sort').value = 'fresh';
     document.getElementById('al-filter-status').value = 'Pending';
     document.getElementById('al-filter-branch').value = '';
+    const handledByEl = document.getElementById('al-filter-handled-by');
+    if (handledByEl) handledByEl.value = '';
     toggleRegFilter();
     fetchAllLeads(1);
   }
 
   function fetchAllLeads(page) {
+    const handledByEl = document.getElementById('al-filter-handled-by');
+    let handledByVal = handledByEl ? handledByEl.value : '';
+    if (handledByVal === '__my_leads__') {
+      handledByVal = getCurrentUserFromCookie() || currentUser || '';
+    }
+
     const params = {
       name: document.getElementById('al-filter-name').value,
       phone: document.getElementById('al-filter-phone').value,
@@ -840,6 +990,7 @@
       endDate: document.getElementById('al-filter-end').value,
       status: document.getElementById('al-filter-status').value,
       branch: document.getElementById('al-filter-branch').value,
+      handledBy: handledByVal,
       regIdFilter: document.getElementById('al-filter-status').value === 'Confirmed' ? document.getElementById('al-filter-reg').value : null,
       sortOrder: document.getElementById('al-filter-sort').value,
       page: page
@@ -904,6 +1055,9 @@
     leads.forEach(lead => {
       let regIdHtml = lead.registrationId ? `<span><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
       let arrivalHtml = lead.arrivalStatus ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
+      let handlerHtml = lead.handledBy 
+        ? `<span class="lead-handler-badge" title="Handled by ${escapeHtml(lead.handledBy)}"><span class="material-icons">person</span> ${escapeHtml(lead.handledBy)}</span>` 
+        : `<span class="lead-handler-badge" style="opacity:0.65;"><span class="material-icons">person_outline</span> Unassigned</span>`;
       const dateHtml = leadDateHtml(lead);
       html += `
         <div class="lead-item">
@@ -916,6 +1070,7 @@
               ${statusBadge(lead.status)}
               ${regIdHtml}
               ${arrivalHtml}
+              ${handlerHtml}
             </div>
             <div class="lead-note">
               <strong>Latest Note:</strong> ${lead.latestConversation}
@@ -1120,6 +1275,18 @@
       `<option value="${opt}" ${user.arrivalStatus === opt ? 'selected' : ''}>${opt || 'Select Arrival'}</option>`
     ).join('');
 
+    let userListForSelect = [...cachedAppUsers];
+    if (user.handledBy && !userListForSelect.includes(user.handledBy)) {
+      userListForSelect.push(user.handledBy);
+    }
+    if (currentUser && !userListForSelect.includes(currentUser)) {
+      userListForSelect.push(currentUser);
+    }
+    userListForSelect.sort();
+    const handlerOptions = `<option value="">(Keep: ${escapeHtml(user.handledBy || 'Unassigned')})</option>` + userListForSelect.map(u => 
+      `<option value="${escapeHtml(u)}" ${(user.handledBy || '').toLowerCase() === u.toLowerCase() ? 'selected' : ''}>${escapeHtml(u)}</option>`
+    ).join('');
+
     const html = `
       ${justCreatedBanner}
       <div class="detail-summary">
@@ -1143,6 +1310,15 @@
         </div>
         <div class="ud-row"><div class="ud-label">Enquiry Date:</div><div class="ud-value" id="disp-enqDate">${user.enquiryDate}</div></div>
         <div class="ud-row"><div class="ud-label">Lead By:</div><div class="ud-value">${user.leadBy || 'N/A'}</div></div>
+        <div class="ud-row">
+          <div class="ud-label">Handled By:</div>
+          <div class="ud-value" id="disp-handledBy">
+            <span style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--primary);">
+              <span class="material-icons" style="font-size: 16px;">person</span>
+              ${escapeHtml(user.handledBy || 'Unassigned')}
+            </span>
+          </div>
+        </div>
         <div class="ud-row"><div class="ud-label">Client Type:</div><div class="ud-value">${user.clientType || 'New'}</div></div>
         <div class="ud-row"><div class="ud-label">Source:</div><div class="ud-value" id="disp-source">${user.source}</div></div>
         <div class="ud-row"><div class="ud-label">Status:</div><div class="ud-value" id="disp-status" data-original-status="${user.status || 'Pending'}">${statusBadge(user.status)}</div></div>
@@ -1185,6 +1361,10 @@
           <div class="form-group" id="ud-arrival-group" style="display: none;">
             <label>Arrival Status (Reached / Closed)</label>
             <select id="ud-update-arrival">${arrivalOptions}</select>
+          </div>
+          <div class="form-group">
+            <label>Update Handled By</label>
+            <select id="ud-update-handledby">${handlerOptions}</select>
           </div>
         </div>
         <div class="form-group">
@@ -1264,6 +1444,12 @@
     const arrivalEl = document.getElementById('ud-update-arrival');
     const arrivalStatus = arrivalEl ? arrivalEl.value : '';
 
+    const handledByEl = document.getElementById('ud-update-handledby');
+    let handledBy = undefined;
+    if (handledByEl && handledByEl.value) {
+      handledBy = handledByEl.value;
+    }
+
     // Name and City edits
     const nameInput = document.getElementById('ud-edit-name');
     const name = nameInput ? nameInput.value.trim() : null;
@@ -1314,7 +1500,7 @@
         btn.textContent = 'Update';
         alert('Error saving: ' + error.message);
       })
-      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity, clientRowFromPage, arrivalStatus);
+      .addConversation(currentDetailRowIndex, text, currentUser, status, branch, cad, regid, originalStatus, name, city, originalName, originalCity, clientRowFromPage, arrivalStatus, handledBy);
   }
 
   // --- Add Lead Flow (New vs Existing) ---
@@ -1564,6 +1750,9 @@
           }
           document.getElementById('phone').value = phone; // Pre-fill phone
           document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
+          const activeUser = getCurrentUserFromCookie() || currentUser || '';
+          const hEl = document.getElementById('handledBy');
+          if (hEl) hEl.value = activeUser;
           pushAppState({ section: 'add-data-section', subStep: 'new-client' });
           setTimeout(() => {
             const nameInput = document.getElementById('name');
@@ -1591,6 +1780,9 @@
     document.getElementById('add-lead-for-selected-client').style.display = 'block';
     document.getElementById('existing-cancel-container').style.display = 'none';
     document.getElementById('ex-enquiryDate').valueAsDate = new Date();
+    const activeUser = getCurrentUserFromCookie() || currentUser || '';
+    const exHEl = document.getElementById('ex-handledBy');
+    if (exHEl) exHEl.value = activeUser;
     document.getElementById('add-lead-for-selected-client').scrollIntoView({ behavior: 'smooth' });
     if (shouldPushState) {
       pushAppState({ section: 'add-data-section', subStep: 'select-lead', clientId: clientId });
@@ -1635,6 +1827,9 @@
 
     document.getElementById('phone').value = phone; // Pre-fill phone
     document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
+    const activeUser = getCurrentUserFromCookie() || currentUser || '';
+    const hEl = document.getElementById('handledBy');
+    if (hEl) hEl.value = activeUser;
     
     if (shouldPushState) {
       pushAppState({ section: 'add-data-section', subStep: 'new-client' });
@@ -1708,9 +1903,14 @@
     const msgDiv = document.getElementById('existing-message');
     
     const clientId = document.getElementById('existing-clientId').value;
+    const exHandledByEl = document.getElementById('ex-handledBy');
+    const userFromCookie = getCurrentUserFromCookie() || currentUser || '';
+    const handledByVal = (exHandledByEl && exHandledByEl.value) ? exHandledByEl.value : userFromCookie;
+
     const data = {
       enquiryDate: document.getElementById('ex-enquiryDate').value,
-      leadBy: document.getElementById('ex-leadBy').value
+      leadBy: document.getElementById('ex-leadBy').value,
+      handledBy: handledByVal
     };
     
     btn.disabled = true;
@@ -1759,6 +1959,8 @@
     const form = document.getElementById('add-data-form');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
+    const userFromCookie = getCurrentUserFromCookie() || currentUser || '';
+    data.handledBy = data.handledBy || userFromCookie;
 
     google.script.run
       .withSuccessHandler(function(response) {
@@ -1882,7 +2084,14 @@
     }
   });
 
-  document.addEventListener('DOMContentLoaded', function() {
+  function initApp() {
     initPhoneInputWatcher();
-  });
+    checkAutoLogin();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 </script>
