@@ -1,16 +1,16 @@
-# Graph Report - CRM  (2026-06-14)
+# Graph Report - CRM  (2026-07-01)
 
 ## Corpus Check
-- 142 files · ~142,175 words
+- 143 files · ~138,820 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1411 nodes · 1270 edges · 152 communities (138 shown, 14 thin omitted)
+- 1425 nodes · 1283 edges · 153 communities (139 shown, 14 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6957e070`
+- Built from commit: `90da2193`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -167,6 +167,7 @@
 - [[_COMMUNITY_Community 149|Community 149]]
 - [[_COMMUNITY_Community 150|Community 150]]
 - [[_COMMUNITY_Community 151|Community 151]]
+- [[_COMMUNITY_Community 152|Community 152]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `How to implement` - 22 edges
@@ -186,7 +187,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (152 total, 14 thin omitted)
+## Communities (153 total, 14 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
@@ -250,131 +251,131 @@ Nodes (14): 1. Abort Prior Autofill Actions, 2. Feature Detection, 3. Create a p
 
 ### Community 15 - "Community 15"
 Cohesion: 0.14
-Nodes (13): 1. HTML Structure, 2. CSS, 3. JavaScript, Accessible Error Announcement, CSS for Fallback, Fallback Logic, Fallbacking & Browser Support, Feature Detection (+5 more)
+Nodes (13): 1. Core Architecture (The 4-File SPA Model), 2. Server-Side Data Access & Performance Patterns, 3. Client-Side SPA Design Patterns, 4. UI/UX Design System Tokens (styles.html), 5. Security & Validation Practices, Code.gs Boilerplate, Google Apps Script Web Application Blueprint, Index.html Boilerplate (+5 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.14
-Nodes (13): 1.1 Which layout mode to use?, 1.2 Working principles, 1 Fundamentals, 2 Flexbox, 3.1 Code example: grid and subgrid, 3 Grid and subgrid, 4.1 Code example: fluid typography using container query units, 4 Container queries (+5 more)
+Nodes (13): 1. HTML Structure, 2. CSS, 3. JavaScript, Accessible Error Announcement, CSS for Fallback, Fallback Logic, Fallbacking & Browser Support, Feature Detection (+5 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.14
-Nodes (13): 1. HTML Structure, 2. CSS, 3. JavaScript State Synchronization, CSS for Fallback, Fallbacking & Browser Support, Fallbacks & browser support for :user-valid and :user-invalid, Implementation Guide, Implementation Strategy (+5 more)
+Nodes (13): 1.1 Which layout mode to use?, 1.2 Working principles, 1 Fundamentals, 2 Flexbox, 3.1 Code example: grid and subgrid, 3 Grid and subgrid, 4.1 Code example: fluid typography using container query units, 4 Container queries (+5 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.14
-Nodes (13): Best practices and pitfalls, Different actions per swipe direction, Fallback for `overscroll-behavior`, Fallback for `scroll-initial-target`, Fallback for `scrollbar-width`, Fallback strategies, How to implement, Step 1: Mark up the list with track and content (+5 more)
+Nodes (13): 1. HTML Structure, 2. CSS, 3. JavaScript State Synchronization, CSS for Fallback, Fallbacking & Browser Support, Fallbacks & browser support for :user-valid and :user-invalid, Implementation Guide, Implementation Strategy (+5 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.15
-Nodes (12): 1. HTML Structure, 2. CSS, CSS for Fallback, Fallbacking & Browser Support, Fallbacks & browser support for :user-valid and :user-invalid, Implementation Guide, Implementation Strategy, JavaScript Fallback (+4 more)
+Cohesion: 0.14
+Nodes (13): Best practices and pitfalls, Different actions per swipe direction, Fallback for `overscroll-behavior`, Fallback for `scroll-initial-target`, Fallback for `scrollbar-width`, Fallback strategies, How to implement, Step 1: Mark up the list with track and content (+5 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.15
-Nodes (12): CSS for Fallback, Fallbacking & Browser Support, Fallbacks & browser support for :user-valid and :user-invalid, Implementation Guide, Implementation Strategy, JavaScript Fallback, Other Considerations, The Problem (+4 more)
+Nodes (12): 1. HTML Structure, 2. CSS, CSS for Fallback, Fallbacking & Browser Support, Fallbacks & browser support for :user-valid and :user-invalid, Implementation Guide, Implementation Strategy, JavaScript Fallback (+4 more)
 
 ### Community 21 - "Community 21"
 Cohesion: 0.15
-Nodes (12): Client-Side Logic, Conditional Mediation Flow (Form Autofill), Easy JSON Serialization Fallback, Explicit Button Flow, Fallback Strategies, HTML Form Annotation, Options Generation, Passkey Authentication Guide (+4 more)
+Nodes (12): CSS for Fallback, Fallbacking & Browser Support, Fallbacks & browser support for :user-valid and :user-invalid, Implementation Guide, Implementation Strategy, JavaScript Fallback, Other Considerations, The Problem (+4 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.15
-Nodes (12): Best Practices, Choosing off-screen content, `content-visibility` fallback, Defer rendering heavy content, Example code, Example code, Fallback strategies, How to implement `content-visibility: auto` (+4 more)
+Nodes (12): Client-Side Logic, Conditional Mediation Flow (Form Autofill), Easy JSON Serialization Fallback, Explicit Button Flow, Fallback Strategies, HTML Form Annotation, Options Generation, Passkey Authentication Guide (+4 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.15
-Nodes (12): Animating to and from Intrinsic Sizes, Animation and Transition Fallbacks, Applying Constraints to Intrinsic Sizes, Basic Syntax, Choosing the Right Tool for Animations, Critical Considerations, Fallback strategies, Implementation Steps (+4 more)
+Nodes (12): Best Practices, Choosing off-screen content, `content-visibility` fallback, Defer rendering heavy content, Example code, Example code, Fallback strategies, How to implement `content-visibility: auto` (+4 more)
 
 ### Community 24 - "Community 24"
 Cohesion: 0.15
-Nodes (12): Basic Setup, Best Practices, Fallback: Anti-Flicker Snippet, Fallback Strategies, Flicker-Free Client-Side A/B Testing, Implementation Guide, Implementation Strategy, Inline Experiment Script (+4 more)
+Nodes (12): Animating to and from Intrinsic Sizes, Animation and Transition Fallbacks, Applying Constraints to Intrinsic Sizes, Basic Syntax, Choosing the Right Tool for Animations, Critical Considerations, Fallback strategies, Implementation Steps (+4 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.17
-Nodes (11): 1. Batch Summarization, 2. Stream Summarization, API Functions & Configuration, Example Configuration, Fallback Strategy, Getting Started, Hardware & Software Requirements, Language Support (+3 more)
+Cohesion: 0.15
+Nodes (12): Basic Setup, Best Practices, Fallback: Anti-Flicker Snippet, Fallback Strategies, Flicker-Free Client-Side A/B Testing, Implementation Guide, Implementation Strategy, Inline Experiment Script (+4 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.17
-Nodes (10): Adapting non-color values, Basic implementation, Best practices, Component-specific light/dark themes, Fallback strategies, Fallbacks & browser support for color-scheme, Important gotcha: Inheritance of `light-dark()` colors, Issues to be aware of when using color-scheme (+2 more)
+Nodes (11): 1. Batch Summarization, 2. Stream Summarization, API Functions & Configuration, Example Configuration, Fallback Strategy, Getting Started, Hardware & Software Requirements, Language Support (+3 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.17
-Nodes (11): Best Practices, Enable interactive HTML content in 3D scenes, Example code, Fallback strategies, How to implement, HTML-in-Canvas polyfill, Three.js, Three.js (+3 more)
+Nodes (10): Adapting non-color values, Basic implementation, Best practices, Component-specific light/dark themes, Fallback strategies, Fallbacks & browser support for color-scheme, Important gotcha: Inheritance of `light-dark()` colors, Issues to be aware of when using color-scheme (+2 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.17
-Nodes (11): Best Practices, Fallback strategies, Implementation Guide, Implementation Strategy, Other Considerations, Precise Text Alignment, The Problem, The Solution (+3 more)
+Nodes (11): Best Practices, Enable interactive HTML content in 3D scenes, Example code, Fallback strategies, How to implement, HTML-in-Canvas polyfill, Three.js, Three.js (+3 more)
 
 ### Community 29 - "Community 29"
 Cohesion: 0.17
-Nodes (11): 1. HTML Structure, 2. CSS, CSS for Fallback, Fallbacking & Browser Support, Implementation Guide, Implementation Strategy, JavaScript Fallback, Other Considerations (+3 more)
+Nodes (11): Best Practices, Fallback strategies, Implementation Guide, Implementation Strategy, Other Considerations, Precise Text Alignment, The Problem, The Solution (+3 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.18
-Nodes (10): Allow for a variety of address formats, Build an address form that follows best practice, Fallback strategies, Help save users from accidentally missing data fields, How to implement, Make buttons helpful, Make the most of HTML attributes, Use a single name input where possible (+2 more)
+Cohesion: 0.17
+Nodes (11): 1. HTML Structure, 2. CSS, CSS for Fallback, Fallbacking & Browser Support, Implementation Guide, Implementation Strategy, JavaScript Fallback, Other Considerations (+3 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.18
-Nodes (10): 1. AAGUID Registry, 2. Using AAGUID After Registration, Client-Side Management UI, Determine the passkey provider from AAGUID {: #aaguid }, Fallback Strategies, Passkey feature detection fallback, Passkey Management Guide, Server-Side Operations (+2 more)
+Nodes (10): Allow for a variety of address formats, Build an address form that follows best practice, Fallback strategies, Help save users from accidentally missing data fields, How to implement, Make buttons helpful, Make the most of HTML attributes, Use a single name input where possible (+2 more)
 
 ### Community 32 - "Community 32"
 Cohesion: 0.18
-Nodes (10): A. Button Flow (No Input Fields), Client-Side Flow Deltas, Delta Flow Architecture, Easy JSON Serialization Fallback, Fallback Strategies, Options Generation Delta, Passkey feature detection fallback, Passkey Reauthentication Guide (+2 more)
+Nodes (10): 1. AAGUID Registry, 2. Using AAGUID After Registration, Client-Side Management UI, Determine the passkey provider from AAGUID {: #aaguid }, Fallback Strategies, Passkey feature detection fallback, Passkey Management Guide, Server-Side Operations (+2 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.18
-Nodes (10): Best Practices, Browser support and fallback strategies, Example of a complex document rule for prerendering links with exclusions for interactive sites, Example of a mixed rule set, Example of a simple document rule for prerendering all same-origin links on a page, Example of a simple URL list rule for prefetching predefined URLs, How it works, How to use it (+2 more)
+Nodes (10): A. Button Flow (No Input Fields), Client-Side Flow Deltas, Delta Flow Architecture, Easy JSON Serialization Fallback, Fallback Strategies, Options Generation Delta, Passkey feature detection fallback, Passkey Reauthentication Guide (+2 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.18
-Nodes (10): 1. Enable Discrete Transitions, 2. The `overlay` Property, 3. Entry Animations with `@starting-style`, 4. Animating the Backdrop, Constraints & Accessibility, Example, Fallback strategies, Implementation (+2 more)
+Nodes (10): Best Practices, Browser support and fallback strategies, Example of a complex document rule for prerendering links with exclusions for interactive sites, Example of a mixed rule set, Example of a simple document rule for prerendering all same-origin links on a page, Example of a simple URL list rule for prefetching predefined URLs, How it works, How to use it (+2 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.18
-Nodes (10): anchor-positioning, Creating Persistent App Tours, CSS, Fallback strategies, HTML, Implementation Guidelines, JavaScript, Option 1: Polyfill Fallback (+2 more)
+Nodes (10): 1. Enable Discrete Transitions, 2. The `overlay` Property, 3. Entry Animations with `@starting-style`, 4. Animating the Backdrop, Constraints & Accessibility, Example, Fallback strategies, Implementation (+2 more)
 
 ### Community 36 - "Community 36"
 Cohesion: 0.18
-Nodes (10): Best practices for `hidden="until-found"`, Browser support and fallback strategies, Custom mutually exclusive disclosures, Example code, `hidden="until-found"` fallback, How to implement, Mutually exclusive disclosures, Search hidden content (+2 more)
+Nodes (10): anchor-positioning, Creating Persistent App Tours, CSS, Fallback strategies, HTML, Implementation Guidelines, JavaScript, Option 1: Polyfill Fallback (+2 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.20
-Nodes (9): 1. Checking Availability & Downloading Models, 3. Executing Translations, Browser Support, Fallback Strategy, Hardware Requirements, Implementation & Code Samples, Prerequisites & Requirements, Security & Performance (+1 more)
+Cohesion: 0.18
+Nodes (10): Best practices for `hidden="until-found"`, Browser support and fallback strategies, Custom mutually exclusive disclosures, Example code, `hidden="until-found"` fallback, How to implement, Mutually exclusive disclosures, Search hidden content (+2 more)
 
 ### Community 38 - "Community 38"
 Cohesion: 0.20
-Nodes (9): 1. HTML Structure, 2. CSS Fallback, Brand-Consistent Forms, Dynamic Range Progress in Webkit Fallback, Example Code: Brand-Consistent Form Controls, Fallback Strategy, How to Implement, Progressive Enhancement with `@supports not` (+1 more)
+Nodes (9): 1. Checking Availability & Downloading Models, 3. Executing Translations, Browser Support, Fallback Strategy, Hardware Requirements, Implementation & Code Samples, Prerequisites & Requirements, Security & Performance (+1 more)
 
 ### Community 39 - "Community 39"
 Cohesion: 0.20
-Nodes (9): Client-Side Logic, Database Requirements, Easy JSON Serialization Fallback, Fallback Strategies, Options Generation, Passkey Registration Guide, Server-Side, Signal API Synchronization Fallback (+1 more)
+Nodes (9): 1. HTML Structure, 2. CSS Fallback, Brand-Consistent Forms, Dynamic Range Progress in Webkit Fallback, Example Code: Brand-Consistent Form Controls, Fallback Strategy, How to Implement, Progressive Enhancement with `@supports not` (+1 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.20
-Nodes (9): 2D Canvas, Best Practices, Example code, Expose canvas content to browser features, Fallback strategies, How to implement, HTML-in-Canvas polyfills, WebGL Canvas (+1 more)
+Nodes (9): Client-Side Logic, Database Requirements, Easy JSON Serialization Fallback, Fallback Strategies, Options Generation, Passkey Registration Guide, Server-Side, Signal API Synchronization Fallback (+1 more)
 
 ### Community 41 - "Community 41"
 Cohesion: 0.20
-Nodes (9): 1. **Identify text elements**:, 2. **Apply the chosen wrapping**:, Choosing the Right Wrapping Method, Critical Constraints and Performance, Fallback strategies, Implementation, Improve Text Layout and Legibility, text-wrap: balance (+1 more)
+Nodes (9): 2D Canvas, Best Practices, Example code, Expose canvas content to browser features, Fallback strategies, How to implement, HTML-in-Canvas polyfills, WebGL Canvas (+1 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.20
-Nodes (9): 1. Create the tooltip and trigger, 2. Set up the container, 3. Style based on the fallback, 4. Styling the container itself, Best practices, Fallback strategies, Polyfilling the Popover Attribute, The problem (+1 more)
+Nodes (9): 1. **Identify text elements**:, 2. **Apply the chosen wrapping**:, Choosing the Right Wrapping Method, Critical Constraints and Performance, Fallback strategies, Implementation, Improve Text Layout and Legibility, text-wrap: balance (+1 more)
 
 ### Community 43 - "Community 43"
 Cohesion: 0.20
-Nodes (9): Best Practices, Fallback Strategies, Implementation Guide, Same Document Transitions, Step 1: Wrap State Changes in `startViewTransition`, Step 2: Assign Shared Transition Names, Step 3: Fix Aspect Ratio "Stretching", The Problem (+1 more)
+Nodes (9): 1. Create the tooltip and trigger, 2. Set up the container, 3. Style based on the fallback, 4. Styling the container itself, Best practices, Fallback strategies, Polyfilling the Popover Attribute, The problem (+1 more)
 
 ### Community 44 - "Community 44"
 Cohesion: 0.20
-Nodes (9): Example, Fallback strategies, Form Attributes, Form Suitability (When to Avoid), Handling Submissions in JavaScript, Lifecycle Events, Visual Feedback (CSS), When to omit toolautosubmit (+1 more)
+Nodes (9): Best Practices, Fallback Strategies, Implementation Guide, Same Document Transitions, Step 1: Wrap State Changes in `startViewTransition`, Step 2: Assign Shared Transition Names, Step 3: Fix Aspect Ratio "Stretching", The Problem (+1 more)
 
 ### Community 45 - "Community 45"
 Cohesion: 0.20
-Nodes (9): API Notes, Defining Parameters, Execution Patterns, Fallback strategies, Lifecycle Handling with `AbortController`, Registration and Lifecycle, Tool Factory Pattern, When to use `async execute` (+1 more)
+Nodes (9): Example, Fallback strategies, Form Attributes, Form Suitability (When to Avoid), Handling Submissions in JavaScript, Lifecycle Events, Visual Feedback (CSS), When to omit toolautosubmit (+1 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.22
-Nodes (8): Guidelines, Interpreting Browser Support & Fallbacks, Modern Web Guidance, Step 1. Search Use Cases, Step 2. Retrieve Best Practices, Usage Instructions, Using npx, When to use
+Cohesion: 0.20
+Nodes (9): API Notes, Defining Parameters, Execution Patterns, Fallback strategies, Lifecycle Handling with `AbortController`, Registration and Lifecycle, Tool Factory Pattern, When to use `async execute` (+1 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.22
@@ -413,326 +414,330 @@ Cohesion: 0.22
 Nodes (8): 1. Establish the Scroll Container, 2. Style the Indicators, 3. Query the Scroll State, Advanced Fallback (Intersection Observer), Basic Fallback, Fallback strategies, Implementation, Overview
 
 ### Community 56 - "Community 56"
-Cohesion: 0.25
-Nodes (7): 1. Model Management & User Activation, 2. Running Detection, Fallback Strategy, Hardware & System Requirements, Implementation Guide, Key Use Cases, Security and Environment
+Cohesion: 0.22
+Nodes (8): Guidelines, Interpreting Browser Support & Fallbacks, Modern Web Guidance, Step 1. Search Use Cases, Step 2. Retrieve Best Practices, Usage Instructions, Using npx, When to use
 
 ### Community 57 - "Community 57"
 Cohesion: 0.25
-Nodes (7): 1. Collect text nodes and create ranges, 2. Create a Highlight from the ranges, 3. Register the highlight in the registry, 4. Style with `::highlight()`, Accessibility, Core implementation, Fallback strategies
+Nodes (7): 1. Model Management & User Activation, 2. Running Detection, Fallback Strategy, Hardware & System Requirements, Implementation Guide, Key Use Cases, Security and Environment
 
 ### Community 58 - "Community 58"
 Cohesion: 0.25
-Nodes (7): 1. Apply CSS Content Visibility, 2. Listen for State Changes, `contentvisibilityautostatechange` vs. `IntersectionObserver`, Efficient Background Processing, Fallback strategies, Implementation, Overview
+Nodes (7): 1. Collect text nodes and create ranges, 2. Create a Highlight from the ranges, 3. Register the highlight in the registry, 4. Style with `::highlight()`, Accessibility, Core implementation, Fallback strategies
 
 ### Community 59 - "Community 59"
 Cohesion: 0.25
-Nodes (7): 1. Identify Containment Regions, 2. Manage Interactions, Fallback strategies, Implementation, Mechanism for On-Screen Elements, Optimizing Interactions in Complex Layouts, Overview
+Nodes (7): 1. Apply CSS Content Visibility, 2. Listen for State Changes, `contentvisibilityautostatechange` vs. `IntersectionObserver`, Efficient Background Processing, Fallback strategies, Implementation, Overview
 
 ### Community 60 - "Community 60"
 Cohesion: 0.25
-Nodes (7): Animate to Intrinsic Sizes, Example: Calculated Intrinsic Inline-Size, Example: Generic Expansion Pattern, Example: Transition from Intrinsic to Fixed, Fallback strategies, Implementation steps, Key constraints
+Nodes (7): 1. Identify Containment Regions, 2. Manage Interactions, Fallback strategies, Implementation, Mechanism for On-Screen Elements, Optimizing Interactions in Complex Layouts, Overview
 
 ### Community 61 - "Community 61"
 Cohesion: 0.25
-Nodes (7): Declarative Button Actions, Dynamic Import (Performance Optimization), Example: Custom Animation Controls, Fallback strategies, Implementation steps, Key constraints, Manual fallback (Traditional pattern)
+Nodes (7): Animate to Intrinsic Sizes, Example: Calculated Intrinsic Inline-Size, Example: Generic Expansion Pattern, Example: Transition from Intrinsic to Fixed, Fallback strategies, Implementation steps, Key constraints
 
 ### Community 62 - "Community 62"
 Cohesion: 0.25
-Nodes (7): Background & Overview, Fallback strategies, Feature-checking with JavaScript, Feature-checking with just CSS, How to implement, Using selectors instead, Using style queries as a progressive enhancement
+Nodes (7): Declarative Button Actions, Dynamic Import (Performance Optimization), Example: Custom Animation Controls, Fallback strategies, Implementation steps, Key constraints, Manual fallback (Traditional pattern)
 
 ### Community 63 - "Community 63"
 Cohesion: 0.25
-Nodes (7): Accessibility, Applying Directional Animations, Defining Keyframes, Fallback strategies, Implementation Steps, Set up shared animation settings, Triggering the Transition
+Nodes (7): Background & Overview, Fallback strategies, Feature-checking with JavaScript, Feature-checking with just CSS, How to implement, Using selectors instead, Using style queries as a progressive enhancement
 
 ### Community 64 - "Community 64"
 Cohesion: 0.25
-Nodes (7): Best Practices, Example: Balancing and Localized Formatting, Fallback strategies, Fallbacks & browser support for Temporal, Formatting Human-Readable Durations with Temporal, How to Implement, Intl.DurationFormat
+Nodes (7): Accessibility, Applying Directional Animations, Defining Keyframes, Fallback strategies, Implementation Steps, Set up shared animation settings, Triggering the Transition
 
 ### Community 65 - "Community 65"
 Cohesion: 0.25
-Nodes (6): anchor-positioning, Creating Toast Notifications, Fallback Strategies, Implementation Guidelines, popover, transition-behavior
+Nodes (7): Best Practices, Example: Balancing and Localized Formatting, Fallback strategies, Fallbacks & browser support for Temporal, Formatting Human-Readable Durations with Temporal, How to Implement, Intl.DurationFormat
 
 ### Community 66 - "Community 66"
 Cohesion: 0.25
-Nodes (7): CSS Fallback, Example: Bounce Easing, Example: Spring Easing, Fallback strategies, Implementation Steps, JavaScript Library Fallback (Motion/GSAP), Key Considerations
+Nodes (6): anchor-positioning, Creating Toast Notifications, Fallback Strategies, Implementation Guidelines, popover, transition-behavior
 
 ### Community 67 - "Community 67"
 Cohesion: 0.25
-Nodes (7): Adjacent Element SVG Masking, Direct Element SVG Masking, Fallback strategies, Implementation, Overview, Using a Single CSS Gradient for Simple Cutouts, Using an SVG Mask
+Nodes (7): CSS Fallback, Example: Bounce Easing, Example: Spring Easing, Fallback strategies, Implementation Steps, JavaScript Library Fallback (Motion/GSAP), Key Considerations
 
 ### Community 68 - "Community 68"
-Cohesion: 0.29
-Nodes (6): Animated Select Picker, Example Code: Smooth Select Scale and Fade, Fallback strategies, Fallbacks & browser support for Customizable <select>, How to Implement, Strategic Implementation & Best Practices
+Cohesion: 0.25
+Nodes (7): Adjacent Element SVG Masking, Direct Element SVG Masking, Fallback strategies, Implementation, Overview, Using a Single CSS Gradient for Simple Cutouts, Using an SVG Mask
 
 ### Community 69 - "Community 69"
 Cohesion: 0.29
-Nodes (6): Branded Select Styling, Example Code: Branded Courier Select, Fallback strategies, Fallbacks & browser support for Customizable <select>, How to Implement, Strategic Implementation & Best Practices
+Nodes (6): Animated Select Picker, Example Code: Smooth Select Scale and Fade, Fallback strategies, Fallbacks & browser support for Customizable <select>, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 70 - "Community 70"
 Cohesion: 0.29
-Nodes (6): Custom Select Picker Layouts, Example Code: Custom Grid Picker, Fallback Strategy, Fallbacks & browser support for Customizable <select>, How to Implement, Strategic Implementation & Best Practices
+Nodes (6): Branded Select Styling, Example Code: Branded Courier Select, Fallback strategies, Fallbacks & browser support for Customizable <select>, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 71 - "Community 71"
 Cohesion: 0.29
-Nodes (6): Example Code: Rich Role Picker, Fallback Strategies, Fallbacks & browser support for Customizable <select>, How to Implement, Rich Media Picker (Customizable Select), Strategic Implementation & Best Practices
+Nodes (6): Custom Select Picker Layouts, Example Code: Custom Grid Picker, Fallback Strategy, Fallbacks & browser support for Customizable <select>, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 72 - "Community 72"
 Cohesion: 0.29
-Nodes (6): Best Practices, Browser support and fallback strategies, Debounce and batch multiple analytics events, Example code, `fetchLater()` polyfill, How to implement
+Nodes (6): Example Code: Rich Role Picker, Fallback Strategies, Fallbacks & browser support for Customizable <select>, How to Implement, Rich Media Picker (Customizable Select), Strategic Implementation & Best Practices
 
 ### Community 73 - "Community 73"
 Cohesion: 0.29
-Nodes (6): Best Practices, Browser support and fallback strategies, Example code, `fetchLater()` polyfill, How to implement, Reliably measure full-session analytics and telemetry
+Nodes (6): Best Practices, Browser support and fallback strategies, Debounce and batch multiple analytics events, Example code, `fetchLater()` polyfill, How to implement
 
 ### Community 74 - "Community 74"
 Cohesion: 0.29
-Nodes (6): 1. Animating `display: none` Toggles, 2. Animating DOM Insertion and Removal, Constraints & Accessibility, Fallback strategies, Implementation, Manual Entry Animation (JS Fallback)
+Nodes (6): Best Practices, Browser support and fallback strategies, Example code, `fetchLater()` polyfill, How to implement, Reliably measure full-session analytics and telemetry
 
 ### Community 75 - "Community 75"
 Cohesion: 0.29
-Nodes (6): Apply WebGL shaders to HTML content, Best Practices, Example code, Fallback strategies, How to implement, HTML-in-Canvas polyfill
+Nodes (6): 1. Animating `display: none` Toggles, 2. Animating DOM Insertion and Removal, Constraints & Accessibility, Fallback strategies, Implementation, Manual Entry Animation (JS Fallback)
 
 ### Community 76 - "Community 76"
 Cohesion: 0.29
-Nodes (6): Calculating Event Differentials with Temporal, Example: Trial Expiration Calculation, Fallback Strategy, Fallbacks & browser support for Temporal, How to Implement, Strategic Implementation & Best Practices
+Nodes (6): Apply WebGL shaders to HTML content, Best Practices, Example code, Fallback strategies, How to implement, HTML-in-Canvas polyfill
 
 ### Community 77 - "Community 77"
 Cohesion: 0.29
-Nodes (6): Capturing Location-Agnostic Data with Temporal, Example: Capturing a Birthdate, Fallback Strategy, Fallbacks & browser support for Temporal, How to Implement, Strategic Implementation & Best Practices
+Nodes (6): Calculating Event Differentials with Temporal, Example: Trial Expiration Calculation, Fallback Strategy, Fallbacks & browser support for Temporal, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 78 - "Community 78"
 Cohesion: 0.29
-Nodes (6): 1. Define a container, 2. Use container query units, 3. Constrain values with `clamp()`, Fallback strategies, Implementation, Overview
+Nodes (6): Capturing Location-Agnostic Data with Temporal, Example: Capturing a Birthdate, Fallback Strategy, Fallbacks & browser support for Temporal, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 79 - "Community 79"
 Cohesion: 0.29
-Nodes (6): Accessibility built in to `interestfor`, Accessibility Constraints (WCAG 1.4.13), Creating the tooltip, Fallback strategies, Positioning the tooltip, Show a tooltip when hovering
+Nodes (6): 1. Define a container, 2. Use container query units, 3. Constrain values with `clamp()`, Fallback strategies, Implementation, Overview
 
 ### Community 80 - "Community 80"
 Cohesion: 0.29
-Nodes (6): Attribute Values, Constraints & Accessibility, Example, Fallback strategies, Implementation, Styling the Backdrop
+Nodes (6): Accessibility built in to `interestfor`, Accessibility Constraints (WCAG 1.4.13), Creating the tooltip, Fallback strategies, Positioning the tooltip, Show a tooltip when hovering
 
 ### Community 81 - "Community 81"
 Cohesion: 0.29
-Nodes (6): Basic Usage, Example code, Fallback strategies, How to implement `text-wrap: nowrap`, Prevent text wrapping, Specific Control with Longhands
+Nodes (6): Attribute Values, Constraints & Accessibility, Example, Fallback strategies, Implementation, Styling the Backdrop
 
 ### Community 82 - "Community 82"
 Cohesion: 0.29
-Nodes (6): 1. Listen for `scrollsnapchanging`, 2. Listen for `scrollsnapchange`, 3. Sync initial state, Fallback strategies, Implementation, Overview
+Nodes (6): Basic Usage, Example code, Fallback strategies, How to implement `text-wrap: nowrap`, Prevent text wrapping, Specific Control with Longhands
 
 ### Community 83 - "Community 83"
 Cohesion: 0.29
-Nodes (6): 1. Define the container, 2. Apply styles based on container size, 3. Conditionally show content, Fallback strategies, Implementation, Overview
+Nodes (6): 1. Listen for `scrollsnapchanging`, 2. Listen for `scrollsnapchange`, 3. Sync initial state, Fallback strategies, Implementation, Overview
 
 ### Community 84 - "Community 84"
 Cohesion: 0.29
-Nodes (6): 1. Identify the aspect ratio of your preferred font, 2. Apply font-size-adjust to the text container, 3. (Optional) Adjust for specific metrics, 4. Verify visual stability, Fallback strategies, Implementation steps
+Nodes (6): 1. Define the container, 2. Apply styles based on container size, 3. Conditionally show content, Fallback strategies, Implementation, Overview
 
 ### Community 85 - "Community 85"
 Cohesion: 0.29
-Nodes (6): Alpha vs Luminance Masking Modes, Fallback strategies, Implementation, Method 1: Using a repeating raster image (Recommended for realistic textures), Method 2: Using CSS Gradients for geometric patterns, Overview
+Nodes (6): 1. Identify the aspect ratio of your preferred font, 2. Apply font-size-adjust to the text container, 3. (Optional) Adjust for specific metrics, 4. Verify visual stability, Fallback strategies, Implementation steps
 
 ### Community 86 - "Community 86"
 Cohesion: 0.29
-Nodes (6): Anti-Patterns & Warnings (DO NOT DO THIS), Best Practices, Implementation Status, Quick Overview, WebMCP (Web Model Context Protocol), When to Discourage WebMCP
+Nodes (6): Alpha vs Luminance Masking Modes, Fallback strategies, Implementation, Method 1: Using a repeating raster image (Recommended for realistic textures), Method 2: Using CSS Gradients for geometric patterns, Overview
 
 ### Community 87 - "Community 87"
-Cohesion: 0.33
-Nodes (5): 2. Semantic HTML and ARIA, Accessibility Coding Guidelines, Actionable Guidelines, DON'Ts, DOs
+Cohesion: 0.29
+Nodes (6): Anti-Patterns & Warnings (DO NOT DO THIS), Best Practices, Implementation Status, Quick Overview, WebMCP (Web Model Context Protocol), When to Discourage WebMCP
 
 ### Community 88 - "Community 88"
 Cohesion: 0.33
-Nodes (6): 6. Alternate Text and Media, Actionable Guidelines, Code Examples, Content Visibility Decision Matrix, DON'Ts, DOs
+Nodes (5): 2. Semantic HTML and ARIA, Accessibility Coding Guidelines, Actionable Guidelines, DON'Ts, DOs
 
 ### Community 89 - "Community 89"
 Cohesion: 0.33
-Nodes (6): 8. Live Regions, Actionable Guidelines, Code Example, DON'Ts, DOs, Live Region Urgency Table
+Nodes (6): 6. Alternate Text and Media, Actionable Guidelines, Code Examples, Content Visibility Decision Matrix, DON'Ts, DOs
 
 ### Community 90 - "Community 90"
 Cohesion: 0.33
-Nodes (5): 1. Core Prerequisites for Passkeys, 2. The AAGUID UX Caveat, 3. Decoupled Library Recommendations, 4. Use Case Reference Matrix, Passkeys Orientation Guide
+Nodes (6): 8. Live Regions, Actionable Guidelines, Code Example, DON'Ts, DOs, Live Region Urgency Table
 
 ### Community 91 - "Community 91"
 Cohesion: 0.33
-Nodes (5): Defer Work Until Scroll Ends, Example Code, Fallback Strategy, How to Implement, Strategic Implementation & Best Practices
+Nodes (5): 1. Core Prerequisites for Passkeys, 2. The AAGUID UX Caveat, 3. Decoupled Library Recommendations, 4. Use Case Reference Matrix, Passkeys Orientation Guide
 
 ### Community 92 - "Community 92"
 Cohesion: 0.33
-Nodes (5): Best practices, Deprioritize background fetches, Example code, Fallback strategy, How to implement
+Nodes (5): Defer Work Until Scroll Ends, Example Code, Fallback Strategy, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 93 - "Community 93"
 Cohesion: 0.33
-Nodes (5): Best Practices, Browser support and fallback strategies, Example of identifying the longest running scripts that contribute to long animation frames, How to implement, Identify heavy-running JavaScript
+Nodes (5): Best practices, Deprioritize background fetches, Example code, Fallback strategy, How to implement
 
 ### Community 94 - "Community 94"
 Cohesion: 0.33
-Nodes (5): Best Practices, Browser support and fallback strategies, Get attributions for INP interactions using web-vitals library, How to implement, Identify causes of poor INP
+Nodes (5): Best Practices, Browser support and fallback strategies, Example of identifying the longest running scripts that contribute to long animation frames, How to implement, Identify heavy-running JavaScript
 
 ### Community 95 - "Community 95"
 Cohesion: 0.33
-Nodes (5): Best practices, Example code, Fallback strategy, How to implement, Optimize image priority
+Nodes (5): Best Practices, Browser support and fallback strategies, Get attributions for INP interactions using web-vitals library, How to implement, Identify causes of poor INP
 
 ### Community 96 - "Community 96"
 Cohesion: 0.33
-Nodes (5): Best Practices, Example code, Fallback strategy, How to implement, Optimize preload priority
+Nodes (5): Best practices, Example code, Fallback strategy, How to implement, Optimize image priority
 
 ### Community 97 - "Community 97"
 Cohesion: 0.33
-Nodes (5): Best Practices, Example code, Fallback strategy, How to implement, Optimize script priority
+Nodes (5): Best Practices, Example code, Fallback strategy, How to implement, Optimize preload priority
 
 ### Community 98 - "Community 98"
 Cohesion: 0.33
-Nodes (5): Example Code: High-Frequency Event Sequencing, Fallback strategies, How to Implement, Sequencing Distributed Events, Strategic Implementation & Best Practices
+Nodes (5): Best Practices, Example code, Fallback strategy, How to implement, Optimize script priority
 
 ### Community 99 - "Community 99"
 Cohesion: 0.33
-Nodes (5): Adapt scrollbar to high-contrast preferences, Enhance Legibility, Fallbacks & Browser Support, Fallbacks & browser support for scrollbar-color, Issues to be aware of when using scrollbar-color
+Nodes (5): Example Code: High-Frequency Event Sequencing, Fallback strategies, How to Implement, Sequencing Distributed Events, Strategic Implementation & Best Practices
 
 ### Community 100 - "Community 100"
 Cohesion: 0.33
-Nodes (5): Best Practices, Browser support and fallback strategies, Build Carousel Slide Effects, Example code, How to implement
+Nodes (5): Adapt scrollbar to high-contrast preferences, Enhance Legibility, Fallbacks & Browser Support, Fallbacks & browser support for scrollbar-color, Issues to be aware of when using scrollbar-color
 
 ### Community 101 - "Community 101"
 Cohesion: 0.33
-Nodes (5): Fallback strategies, Implementation, Overview, Using an SVG element in HTML, Using transparency from an image
+Nodes (5): Best Practices, Browser support and fallback strategies, Build Carousel Slide Effects, Example code, How to implement
 
 ### Community 102 - "Community 102"
 Cohesion: 0.33
-Nodes (5): Coordinating Global Events with Temporal, Example: Scheduling and Conflict Detection, Fallback strategies, How to Implement, Strategic Implementation & Best Practices
+Nodes (5): Fallback strategies, Implementation, Overview, Using an SVG element in HTML, Using transparency from an image
 
 ### Community 103 - "Community 103"
 Cohesion: 0.33
-Nodes (5): 1. Opt-in to Cross-Document View Transitions, 2. Customize Transition Animations (Optional), 3. Create Directional Transitions (Optional), Fallback strategies, Implementation Steps
+Nodes (5): Coordinating Global Events with Temporal, Example: Scheduling and Conflict Detection, Fallback strategies, How to Implement, Strategic Implementation & Best Practices
 
 ### Community 104 - "Community 104"
 Cohesion: 0.33
-Nodes (5): Circular and complex positioning, Dynamic color systems, Fallback strategies, Styling siblings based on count and index, Symmetrical layout and fan effects
+Nodes (5): 1. Opt-in to Cross-Document View Transitions, 2. Customize Transition Animations (Optional), 3. Create Directional Transitions (Optional), Fallback strategies, Implementation Steps
 
 ### Community 105 - "Community 105"
 Cohesion: 0.33
-Nodes (5): Best Practices, Example code, Export HTML content from canvas, Fallback strategies, How to implement
+Nodes (5): Circular and complex positioning, Dynamic color systems, Fallback strategies, Styling siblings based on count and index, Symmetrical layout and fan effects
 
 ### Community 106 - "Community 106"
 Cohesion: 0.33
-Nodes (5): Example: Subscription Billing Cycle, Fallback strategies, How to Implement, Managing Recurring Intervals with Temporal, Strategic Implementation & Best Practices
+Nodes (5): Best Practices, Example code, Export HTML content from canvas, Fallback strategies, How to implement
 
 ### Community 107 - "Community 107"
 Cohesion: 0.33
-Nodes (5): Best Practices, Browser support and fallback strategies, Build a Parallax Effect on Scroll, Example code, How to implement
+Nodes (5): Example: Subscription Billing Cycle, Fallback strategies, How to Implement, Managing Recurring Intervals with Temporal, Strategic Implementation & Best Practices
 
 ### Community 108 - "Community 108"
 Cohesion: 0.33
-Nodes (5): Example Code: Pull to Reveal Search, Fallback Strategy, How to Implement, Pull to Reveal, Strategic Implementation & Best Practices
+Nodes (5): Best Practices, Browser support and fallback strategies, Build a Parallax Effect on Scroll, Example code, How to implement
 
 ### Community 109 - "Community 109"
 Cohesion: 0.33
-Nodes (5): Add entry and exit effects to elements as they enter or exit the scrollport, Best Practices, Browser support and fallback strategies, Example code, How to implement
+Nodes (5): Example Code: Pull to Reveal Search, Fallback Strategy, How to Implement, Pull to Reveal, Strategic Implementation & Best Practices
 
 ### Community 110 - "Community 110"
 Cohesion: 0.33
-Nodes (5): Best Practices, Build a Scroll Progress Indicator, Example code, Fallback strategies, How to implement
+Nodes (5): Add entry and exit effects to elements as they enter or exit the scrollport, Best Practices, Browser support and fallback strategies, Example code, How to implement
 
 ### Community 111 - "Community 111"
 Cohesion: 0.33
-Nodes (5): 1. Configure Scroll Snap in CSS, 2. Listen for Snap Changes, Accessibility, Fallback strategies, Implementation
+Nodes (5): Best Practices, Build a Scroll Progress Indicator, Example code, Fallback strategies, How to implement
 
 ### Community 112 - "Community 112"
 Cohesion: 0.33
-Nodes (5): Example Code: Vertical Media Feed, Fallback Strategy, How to Implement, Set a scroll target for the initial render, Strategic Implementation & Best Practices
+Nodes (5): 1. Configure Scroll Snap in CSS, 2. Listen for Snap Changes, Accessibility, Fallback strategies, Implementation
 
 ### Community 113 - "Community 113"
 Cohesion: 0.33
-Nodes (5): Best Practices, Example code, Fallback strategies, How to implement, Scrollytelling
+Nodes (5): Example Code: Vertical Media Feed, Fallback Strategy, How to Implement, Set a scroll target for the initial render, Strategic Implementation & Best Practices
 
 ### Community 114 - "Community 114"
 Cohesion: 0.33
-Nodes (5): Best Practices, Browser support and fallback strategies, Example code, How to implement, Shrinking headder on scroll
+Nodes (5): Best Practices, Example code, Fallback strategies, How to implement, Scrollytelling
 
 ### Community 115 - "Community 115"
 Cohesion: 0.33
-Nodes (5): Fading both top and bottom edges, Fading the bottom edge of a container, Fallback strategies, Implementation, Overview
+Nodes (5): Best Practices, Browser support and fallback strategies, Example code, How to implement, Shrinking headder on scroll
 
 ### Community 116 - "Community 116"
 Cohesion: 0.33
-Nodes (5): Example Code: Temporal vs Legacy Date in State, Fallback strategies, How to Implement, Stabilize Reactive State with Temporal, Strategic Implementation & Best Practices
+Nodes (5): Fading both top and bottom edges, Fading the bottom edge of a container, Fallback strategies, Implementation, Overview
 
 ### Community 117 - "Community 117"
 Cohesion: 0.33
-Nodes (5): Example Code: Converting and Iterating Calendars, Fallback Strategy, How to Implement, Strategic Implementation & Best Practices, Supporting Global Calendar Systems with Temporal
+Nodes (5): Example Code: Temporal vs Legacy Date in State, Fallback strategies, How to Implement, Stabilize Reactive State with Temporal, Strategic Implementation & Best Practices
 
 ### Community 118 - "Community 118"
-Cohesion: 0.40
-Nodes (5): 10. Motions and Preferences, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Cohesion: 0.33
+Nodes (5): Example Code: Converting and Iterating Calendars, Fallback Strategy, How to Implement, Strategic Implementation & Best Practices, Supporting Global Calendar Systems with Temporal
 
 ### Community 119 - "Community 119"
 Cohesion: 0.40
-Nodes (5): 11. Modals and Native Dialogs, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Nodes (5): 10. Motions and Preferences, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 120 - "Community 120"
 Cohesion: 0.40
-Nodes (5): 1. Content Navigability and Structure, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Nodes (5): 11. Modals and Native Dialogs, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 121 - "Community 121"
 Cohesion: 0.40
-Nodes (5): 3. Accessible Names and Descriptions, Actionable Guidelines, Code Example: Visually Hidden Utility, DON'Ts, DOs
+Nodes (5): 1. Content Navigability and Structure, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 122 - "Community 122"
 Cohesion: 0.40
-Nodes (5): 4. Document Metadata and Language, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Nodes (5): 3. Accessible Names and Descriptions, Actionable Guidelines, Code Example: Visually Hidden Utility, DON'Ts, DOs
 
 ### Community 123 - "Community 123"
 Cohesion: 0.40
-Nodes (5): 5. Keyboard and Focus Management, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Nodes (5): 4. Document Metadata and Language, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 124 - "Community 124"
 Cohesion: 0.40
-Nodes (5): 7. Forms and Input Controls, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Nodes (5): 5. Keyboard and Focus Management, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 125 - "Community 125"
 Cohesion: 0.40
-Nodes (5): 9. Color, Contrast, and Typography, Actionable Guidelines, Code Examples, DON'Ts, DOs
+Nodes (5): 7. Forms and Input Controls, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 126 - "Community 126"
 Cohesion: 0.40
-Nodes (4): Fallback strategies, How to implement, Use the correct CSS pseudo-class name, Use the CSS :autofill pseudo-class to highlight form fields that have been autofilled by the browser and not edited by the user
+Nodes (5): 9. Color, Contrast, and Typography, Actionable Guidelines, Code Examples, DON'Ts, DOs
 
 ### Community 127 - "Community 127"
 Cohesion: 0.40
-Nodes (4): Apply `scrollbar-color` and `scrollbar-width`, Customize the color or thickness of a scrollbar, Fallback strategies, Fallbacks & browser support for scrollbar-color
+Nodes (4): Fallback strategies, How to implement, Use the correct CSS pseudo-class name, Use the CSS :autofill pseudo-class to highlight form fields that have been autofilled by the browser and not edited by the user
 
 ### Community 128 - "Community 128"
 Cohesion: 0.40
-Nodes (4): Fallback strategies, Independent Animation and Transitions, Key Implementation Details, Preventing Unexpected Changes in Stacking Contexts and Containing Blocks
+Nodes (4): Apply `scrollbar-color` and `scrollbar-width`, Customize the color or thickness of a scrollbar, Fallback strategies, Fallbacks & browser support for scrollbar-color
 
 ### Community 129 - "Community 129"
 Cohesion: 0.40
-Nodes (4): 1. Define the Button and Panel Relationship, 2. Positioning with `position-area`, 3. Implement Edge-Resilience (Fallbacks), Fallback strategies
+Nodes (4): Fallback strategies, Independent Animation and Transitions, Key Implementation Details, Preventing Unexpected Changes in Stacking Contexts and Containing Blocks
 
 ### Community 130 - "Community 130"
 Cohesion: 0.40
-Nodes (4): Example: Normalizing x-height automatically, Example: Specifying a specific x-height, Fallback strategies, Implementation Steps
+Nodes (4): 1. Define the Button and Panel Relationship, 2. Positioning with `position-area`, 3. Implement Edge-Resilience (Fallbacks), Fallback strategies
 
 ### Community 131 - "Community 131"
-Cohesion: 0.50
-Nodes (4): 12. Testing Validations, Actionable Guidelines, DON'Ts, DOs
+Cohesion: 0.40
+Nodes (4): Example: Normalizing x-height automatically, Example: Specifying a specific x-height, Fallback strategies, Implementation Steps
 
 ### Community 132 - "Community 132"
 Cohesion: 0.50
-Nodes (3): Breaking up long tasks, Fallback for `scheduler.yield()`, Fallback strategies
+Nodes (4): 12. Testing Validations, Actionable Guidelines, DON'Ts, DOs
 
 ### Community 133 - "Community 133"
 Cohesion: 0.50
-Nodes (3): Calculate total foreground time, Fallbacks & browser support, Implementing foreground time calculation
+Nodes (3): Breaking up long tasks, Fallback for `scheduler.yield()`, Fallback strategies
 
 ### Community 134 - "Community 134"
 Cohesion: 0.50
-Nodes (3): Avoiding the Safari top-level `await` bug, Conditional polyfill pattern, Fallback strategies
+Nodes (3): Calculate total foreground time, Fallbacks & browser support, Implementing foreground time calculation
 
 ### Community 135 - "Community 135"
 Cohesion: 0.50
-Nodes (3): Creating a stagger animation, Fallback strategies, Stagger animations with `sibling-index()`
+Nodes (3): Avoiding the Safari top-level `await` bug, Conditional polyfill pattern, Fallback strategies
 
 ### Community 136 - "Community 136"
+Cohesion: 0.50
+Nodes (3): Creating a stagger animation, Fallback strategies, Stagger animations with `sibling-index()`
+
+### Community 137 - "Community 137"
 Cohesion: 0.50
 Nodes (3): Fallback strategies, Moving an element with state, Moving custom elements (Web Components)
 
@@ -741,17 +746,17 @@ Cohesion: 0.05
 Nodes (42): 10. `getClientByPhone`, 11. `checkPhoneExists`, 12. `addLeadForExistingClient`, 13. `addCustomer`, 14. `formatDateToDayMonthYear`, 15. `getFilteredClients`, 16. `getFilteredLeads`, 17. `getClientDetailsWithLeads` (+34 more)
 
 ## Knowledge Gaps
-- **905 isolated node(s):** `graphify`, `When to use`, `Step 1. Search Use Cases`, `Step 2. Retrieve Best Practices`, `Using npx` (+900 more)
+- **914 isolated node(s):** `graphify`, `Code.gs Boilerplate`, `Index.html Boilerplate`, `Read Optimizations (In-Memory Processing)`, `Write Optimizations (Transactional Concurrency & Locking)` (+909 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Accessibility Coding Guidelines` connect `Community 87` to `Community 89`, `Community 131`, `Community 88`, `Community 118`, `Community 119`, `Community 120`, `Community 121`, `Community 122`, `Community 123`, `Community 124`, `Community 125`?**
+- **Why does `Accessibility Coding Guidelines` connect `Community 88` to `Community 89`, `Community 132`, `Community 90`, `Community 119`, `Community 120`, `Community 121`, `Community 122`, `Community 123`, `Community 124`, `Community 125`, `Community 126`?**
   _High betweenness centrality (0.002) - this node is a cross-community bridge._
-- **What connects `graphify`, `When to use`, `Step 1. Search Use Cases` to the rest of the system?**
-  _905 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `graphify`, `Code.gs Boilerplate`, `Index.html Boilerplate` to the rest of the system?**
+  _914 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.047619047619047616 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**

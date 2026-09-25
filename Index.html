@@ -157,13 +157,9 @@
                 <option value="">All</option>
                 <option value="Pending" selected>Pending</option>
                 <option value="Confirmed">Confirmed</option>
-                <option value="Not Interested">Not Interested</option>
                 <option value="Follow Up">Follow Up</option>
                 <option value="Closed">Closed</option>
                 <option value="Call Not Answered">Call Not Answered</option>
-                <option value="General Inquiry">General Inquiry</option>
-                <option value="Call Dropped">Call Dropped</option>
-                <option value="Patient Will Contact">Patient Will Contact</option>
               </select>
             </div>
             <div class="filter-group">
@@ -177,10 +173,11 @@
             </div>
             <div class="filter-group" id="al-reg-filter-group" style="display: none;">
               <label>Confirmation Detail</label>
-              <select id="al-filter-reg">
+              <select id="al-filter-reg" onchange="fetchAllLeads(1)">
                 <option value="">All Confirmed</option>
                 <option value="reached">Reached</option>
                 <option value="not_reached">Not Reached</option>
+                <option value="closed">Closed</option>
               </select>
             </div>
             <div class="filter-group">
@@ -207,25 +204,36 @@
           <h1>Add New Lead</h1>
           
           <div class="form-container" id="phone-check-container">
-            <p style="margin-bottom: 15px; color: var(--text-light);">Enter the client's phone number to check if they already exist.</p>
-            <div class="form-group">
-              <label>Phone Number</label>
-              <input type="tel" id="check-phone" pattern="[0-9]{10}" placeholder="Enter 10 digit phone number" title="Please enter exactly 10 digits">
-            </div>
-            <button class="btn btn-primary" onclick="verifyClientPhone()" id="verify-phone-btn">Check Client</button>
-            <div id="verify-message" class="message"></div>
+            <p style="margin-bottom: 15px; color: var(--text-light);">Enter the client's phone number to check whether they are an existing client or a new client.</p>
+            <form id="phone-check-form" onsubmit="event.preventDefault(); verifyClientPhone();">
+              <div class="form-group">
+                <label for="check-phone">Phone Number</label>
+                <input type="tel" id="check-phone" pattern="[0-9]{10}" placeholder="Enter 10 digit phone number" title="Please enter exactly 10 digits" inputmode="numeric" autocomplete="tel">
+                <div style="font-size: 12px; color: var(--text-light); margin-top: 5px;">Type or paste 10 digits to check automatically, or press Enter.</div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100" id="verify-phone-btn">
+                <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 4px;">search</span> Check Client
+              </button>
+              <div id="verify-message" class="message"></div>
+            </form>
           </div>
 
           <div class="form-container" id="existing-client-container" style="display: none; margin-top: 20px; border-left: 4px solid var(--primary); position: relative; max-width: 700px;">
+            <button type="button" class="back-btn" onclick="resetAddDataFlow()" style="margin-bottom: 15px;">
+              <span class="material-icons">arrow_back</span> Check Different Phone Number
+            </button>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-              <h3 style="margin: 0;">Existing Clients Found</h3>
-              <button type="button" class="btn btn-primary" onclick="showNewClientFormForExistingNumber()" id="add-new-client-btn">Add new client</button>
+              <h3 style="margin: 0;">Existing Client Records</h3>
+              <button type="button" class="btn btn-outline" onclick="showNewClientFormForExistingNumber()" id="add-new-client-btn">Add different client under this number</button>
             </div>
             
             <div id="existing-clients-list" style="margin-top: 15px;"></div>
             
             <!-- Add lead form for the selected client -->
             <div id="add-lead-for-selected-client" style="display: none; margin-top: 25px; padding-top: 25px; border-top: 1px solid var(--border);">
+              <button type="button" class="back-btn" onclick="cancelSelectedClientLead()" style="margin-bottom: 15px;">
+                <span class="material-icons">arrow_back</span> Back to Client Selection
+              </button>
               <h4 id="add-lead-title" style="margin-bottom: 15px; color: var(--primary);">Add Lead for Client</h4>
               <form id="add-lead-existing-form" onsubmit="handleAddLeadExisting(event)">
                 <input type="hidden" id="existing-clientId">
@@ -252,11 +260,21 @@
             </div>
             
             <div class="form-group mt-20" id="existing-cancel-container">
-              <button type="button" class="btn btn-outline w-100" onclick="resetAddDataFlow()">Cancel / Start Over</button>
+              <button type="button" class="btn btn-outline w-100" onclick="resetAddDataFlow()">Check Different Phone Number / Start Over</button>
             </div>
           </div>
 
-          <div class="form-container" id="new-client-container" style="display: none; margin-top: 20px;">
+          <div class="form-container" id="new-client-container" style="display: none; margin-top: 20px; border-left: 4px solid var(--success);">
+            <button type="button" class="back-btn" id="new-client-back-btn" onclick="cancelNewClientForm()" style="margin-bottom: 15px;">
+              <span class="material-icons">arrow_back</span> Back
+            </button>
+            <div id="new-client-banner" class="client-status-banner new">
+              <span class="material-icons">person_add</span>
+              <div>
+                <strong>New Client Detected</strong>
+                <div id="new-banner-subtitle" style="font-size: 13px; font-weight: normal; margin-top: 2px;">No existing client was found for this phone number. Enter client details below to create their record and first lead.</div>
+              </div>
+            </div>
             <h3>Create New Client & Lead</h3>
             <form id="add-data-form" onsubmit="handleFormSubmit(event)" style="margin-top: 15px;">
               <div class="form-grid">
@@ -306,7 +324,7 @@
                 </div>
               </div>
               <div class="form-group mt-20" style="display: flex; gap: 10px;">
-                <button type="button" class="btn btn-outline flex-1" onclick="resetAddDataFlow()">Cancel</button>
+                <button type="button" class="btn btn-outline flex-1" id="new-client-cancel-btn" onclick="cancelNewClientForm()">Cancel</button>
                 <button type="submit" class="btn btn-primary flex-1" id="submit-btn">Save Client</button>
               </div>
               <div id="add-message" class="message"></div>
@@ -360,13 +378,9 @@
                 <option value="">All Today</option>
                 <option value="Pending">Pending</option>
                 <option value="Confirmed">Confirmed</option>
-                <option value="Not Interested">Not Interested</option>
                 <option value="Follow Up">Follow Up</option>
                 <option value="Closed">Closed</option>
                 <option value="Call Not Answered">Call Not Answered</option>
-                <option value="General Inquiry">General Inquiry</option>
-                <option value="Call Dropped">Call Dropped</option>
-                <option value="Patient Will Contact">Patient Will Contact</option>
               </select>
             </div>
             <div class="filter-group">
@@ -380,7 +394,7 @@
               <button class="btn btn-primary" onclick="fetchTodayCalls(1)">Apply</button>
               <button class="btn btn-outline ml-10" onclick="clearTodayCallsFilters()">Clear</button>
             </div>
-          </div>
+          </div>   
 
           <div id="tc-loading" class="loading">Loading today's contacts...</div>
           <div id="tc-list" class="list-container mt-20"></div>
@@ -410,6 +424,9 @@
         </section>
 
       </main>
+
+      <!-- App Toast Notification -->
+      <div id="app-toast" class="app-toast"></div>
 
       <!-- Session Warning Toast -->
 

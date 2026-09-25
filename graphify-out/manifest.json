@@ -705,23 +705,28 @@
     "semantic_hash": ""
   },
   "Index.html": {
-    "mtime": 1782385505.02188,
-    "ast_hash": "7045717842b890ca51eebeeaa25ce385",
+    "mtime": 1790322099.6714396,
+    "ast_hash": "641df6fb994da66fe79f4cbfa420cdee",
     "semantic_hash": ""
   },
   "script.html": {
-    "mtime": 1782387350.3560624,
-    "ast_hash": "e49cd7e00826097e835df31f0da9c10d",
+    "mtime": 1790322269.567211,
+    "ast_hash": "24141a86fc270af10a316a7f59c49706",
     "semantic_hash": ""
   },
   "styles.html": {
-    "mtime": 1782128748.6216137,
-    "ast_hash": "b82b1b3701cffdf085fcaa3224152f6e",
+    "mtime": 1790317269.6355107,
+    "ast_hash": "dd0dcccaeb8ace62c17b2e18d3bae2d9",
     "semantic_hash": ""
   },
   "documentation.md": {
     "mtime": 1781428589.664336,
     "ast_hash": "48966d7b8f2ec1c19e5b44d5cd4bb27e",
+    "semantic_hash": ""
+  },
+  ".agents/skills/appscript-webapps/SKILL.md": {
+    "mtime": 1782908739.3715742,
+    "ast_hash": "13c5929afbb3e3451872fafb5b99aec1",
     "semantic_hash": ""
   }
 }

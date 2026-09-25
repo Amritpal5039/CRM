@@ -344,4 +344,62 @@
     background: var(--primary); color: white; border: none; border-radius: 6px;
     padding: 6px 14px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;
   }
+
+  /* Client Status Banners */
+  .client-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .client-status-banner.existing {
+    background: #e8f0fe;
+    color: #185abc;
+    border: 1px solid #c2e7ff;
+  }
+  .client-status-banner.new {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #b7dfc1;
+  }
+  .client-status-banner .material-icons {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  /* App Floating Toast */
+  .app-toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: #1d1d1f;
+    color: white;
+    padding: 14px 22px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    max-width: 90vw;
+    animation: slideDownToast 0.3s ease;
+  }
+  @keyframes slideDownToast {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .app-toast.success {
+    background: #0b8043;
+    color: white;
+  }
+  .app-toast.error {
+    background: #d93025;
+    color: white;
+  }
 </style>

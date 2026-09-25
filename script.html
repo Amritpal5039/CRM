@@ -54,6 +54,15 @@
     if (section === 'client-detail-section' && currentClientDetailId) {
       return { view: 'app', section: section, clientId: currentClientDetailId };
     }
+    if (section === 'add-data-section') {
+      const subStep = (typeof getAddDataSubStep === 'function') ? getAddDataSubStep() : 'phone-check';
+      const st = { view: 'app', section: section, subStep: subStep };
+      if (subStep === 'select-lead') {
+        const cIdEl = document.getElementById('existing-clientId');
+        if (cIdEl) st.clientId = cIdEl.value;
+      }
+      return st;
+    }
     return { view: 'app', section: section };
   }
 
@@ -68,6 +77,21 @@
   function pushAppState(state) {
     if (!currentUser || !appHistoryReady) return;
     history.pushState(Object.assign({ view: 'app', section: getActiveSectionId() }, state), '', location.href);
+  }
+
+  let toastTimer = null;
+  function showToast(message, type = 'success', durationMs = 4000) {
+    const toast = document.getElementById('app-toast');
+    if (!toast) return;
+    if (toastTimer) clearTimeout(toastTimer);
+    toast.className = `app-toast ${type}`;
+    const icon = type === 'success' ? 'check_circle' : (type === 'error' ? 'error' : 'info');
+    toast.innerHTML = `<span class="material-icons" style="font-size: 20px;">${icon}</span><span>${escapeHtml(message)}</span>`;
+    toast.style.display = 'flex';
+    toastTimer = setTimeout(() => {
+      toast.style.display = 'none';
+      toastTimer = null;
+    }, durationMs);
   }
 
   function loadSectionData(sectionId) {
@@ -92,6 +116,11 @@
       openLeadDetailPage(state.rowIndex, false);
     } else if (state.section === 'client-detail-section' && state.clientId) {
       openClientDetail(state.clientId, false);
+    } else if (state.section === 'add-data-section') {
+      showSection('add-data-section', null, false);
+      if (typeof restoreAddDataState === 'function') {
+        restoreAddDataState(state);
+      }
     } else {
       showSection(state.section || 'dashboard-section', null, false);
       loadSectionData(state.section || 'dashboard-section');
@@ -136,6 +165,7 @@
           document.getElementById('app-container').style.display = 'flex';
           document.getElementById('logged-in-user').textContent = 'Logged in as: ' + currentUser + (isCurrentUserAdmin ? ' (Admin)' : '');
           initAppHistory();
+          initPhoneInputWatcher();
           startInactivityTimer(); // begin inactivity countdown
           
           // Show/hide dashboard nav item based on admin status
@@ -228,6 +258,18 @@
     }
 
     if (shouldPushState) pushAppState({ section: sectionId });
+
+    if (sectionId === 'add-data-section') {
+      if (element) {
+        resetAddDataFlow();
+      }
+      setTimeout(() => {
+        const checkPhone = document.getElementById('check-phone');
+        if (checkPhone && typeof getAddDataSubStep === 'function' && getAddDataSubStep() === 'phone-check') {
+          checkPhone.focus();
+        }
+      }, 50);
+    }
     
     // Auto-close sidebar + backdrop on mobile after clicking a link
     if (window.innerWidth <= 768) {
@@ -236,69 +278,103 @@
   }
 
   // --- Dashboard ---
-  function fetchDashboardStats() {
+  let dashboardCache = {};
+
+  function fetchDashboardStats(forceRefresh = false) {
     const start = document.getElementById('dash-start-date').value;
     const end = document.getElementById('dash-end-date').value;
-    
+    const filterKey = `${start}_${end}`;
+    const filterBtn = document.querySelector('#dashboard-section .filter-bar button');
+
+    // Instant render from memory if available
+    if (!forceRefresh && dashboardCache[filterKey]) {
+      renderDashboardUI(dashboardCache[filterKey]);
+    }
+
+    if (filterBtn) {
+      filterBtn.disabled = true;
+      filterBtn.textContent = 'Loading...';
+    }
+
     google.script.run
       .withSuccessHandler(function(stats) {
-        document.getElementById('stat-conv-overall').textContent = stats.overallConversionRate + '%';
-        
-        const cityListEl = document.getElementById('stat-city-lead-list');
-        if (stats.topLeadCities && stats.topLeadCities.length > 0) {
-          cityListEl.innerHTML = stats.topLeadCities.map((city, idx) => `
-            <li style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-light); border-radius: 8px;">
-              <span style="font-weight: 500; text-transform: capitalize;">${idx + 1}. ${city.name}</span>
-              <span style="color: var(--primary); font-weight: bold;">${city.count} leads</span>
-            </li>
-          `).join('');
-        } else {
-          cityListEl.innerHTML = '<li style="color: var(--text-light); text-align: center;">None</li>';
+        if (filterBtn) {
+          filterBtn.disabled = false;
+          filterBtn.textContent = 'Filter';
         }
-        
-        renderChart(stats);
-        renderTrendChart(stats.timeline);
-        renderSourceChart(stats.sources);
-        renderLeadByChart(stats.leadBy);
-        renderBranchChart(stats.branchStats);
+        dashboardCache[filterKey] = stats;
+        renderDashboardUI(stats);
+      })
+      .withFailureHandler(function(error) {
+        if (filterBtn) {
+          filterBtn.disabled = false;
+          filterBtn.textContent = 'Filter';
+        }
+        alert('Error loading dashboard: ' + error.message);
       })
       .getDashboardStats(start, end);
+  }
+
+  function renderDashboardUI(stats) {
+    document.getElementById('stat-conv-overall').textContent = (stats.overallConversionRate || '0.00') + '%';
+    
+    const cityListEl = document.getElementById('stat-city-lead-list');
+    if (stats.topLeadCities && stats.topLeadCities.length > 0) {
+      cityListEl.innerHTML = stats.topLeadCities.map((city, idx) => `
+        <li style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-light); border-radius: 8px;">
+          <span style="font-weight: 500; text-transform: capitalize;">${idx + 1}. ${city.name}</span>
+          <span style="color: var(--primary); font-weight: bold;">${city.count} leads</span>
+        </li>
+      `).join('');
+    } else {
+      cityListEl.innerHTML = '<li style="color: var(--text-light); text-align: center;">None</li>';
+    }
+    
+    renderChart(stats);
+    renderTrendChart(stats.timeline || {});
+    renderSourceChart(stats.sources || {});
+    renderLeadByChart(stats.leadBy || {});
+    renderBranchChart(stats.branchStats || {});
   }
 
   function renderChart(stats) {
     const ctx = document.getElementById('dashboardChart').getContext('2d');
     
-    // "Other" bar = Pending + Follow Up + Not Interested + No Answer + (historical Call Dropped)
-    const otherCount = stats.otherGroup ||
-      (stats.pending + stats.followUp + stats.notInterested + stats.callNotAnswered + (stats.callDropped || 0));
-
     const confirmedTotal = stats.confirmed ||
-      (stats.confirmedReached + (stats.confirmedNotReached || 0) + (stats.confirmedWithoutReg || 0));
+      ((stats.confirmedReached || 0) + (stats.confirmedNotReached || 0) + (stats.confirmedWithoutReg || 0));
     const closedTotal = (stats.closed || 0) + (stats.confirmedClosed || 0);
 
+    const legacyTotal = (stats.patientWillContact || 0) + 
+                        (stats.callDropped || 0) + 
+                        (stats.generalInquiry || 0) + 
+                        (stats.notInterested || 0);
+
     const labels = [
-      'Total Enquiries',
-      'Other\n(Pend+FU+NI+NA)',
-      'Gen Inquiry',
-      'Pat Will Contact',
+      'Total',
       'Confirmed',
-      'Closed'
+      'Pending',
+      'Follow Up',
+      'Call Not Answered',
+      'Closed',
+      'Retired / Other'
     ];
     const data = [
-      stats.total,
-      otherCount,
-      stats.generalInquiry,
-      stats.patientWillContact,
+      stats.total || 0,
       confirmedTotal,
-      closedTotal
+      stats.pending || 0,
+      stats.followUp || 0,
+      stats.callNotAnswered || 0,
+      closedTotal,
+      legacyTotal
     ];
     const bgColors = [
       '#006A7F',  // Total – teal
-      '#78909c',  // Other – blue-grey
-      '#00bcd4',  // Gen Inquiry – cyan
-      '#8e24aa',  // Pat Will Contact – purple
-      '#1565c0',  // Confirmed total – dark blue
-      '#9e9e9e'   // Closed – grey
+      '#137333',  // Confirmed – green
+      '#fbbc04',  // Pending – amber
+      '#185abc',  // Follow Up – blue
+      '#e37400',  // Call Not Answered – orange
+      '#5f6368',  // Closed – grey
+      '#78909c'   // Retired / Other – blue-grey
     ];
 
     if (dashboardChartInstance) dashboardChartInstance.destroy();
@@ -323,27 +399,28 @@
           tooltip: {
             callbacks: {
               afterLabel: function(ctx) {
-                // Hover "Other" bar — show breakdown
+                // Hover "Confirmed" bar (index 1) — show sub-breakdown
                 if (ctx.dataIndex === 1) {
                   return [
-                    '  Pending: ' + stats.pending,
-                    '  Follow Up: ' + stats.followUp,
-                    '  Not Interested: ' + stats.notInterested,
-                    '  No Answer: ' + stats.callNotAnswered
-                  ];
-                }
-                // Hover "Confirmed" bar — show sub-breakdown
-                if (ctx.dataIndex === 4) {
-                  return [
-                    '  Reached: ' + stats.confirmedReached,
+                    '  Reached: ' + (stats.confirmedReached || 0),
                     '  Pending Arrival: ' + ((stats.confirmedWithoutReg || 0) + (stats.confirmedNotReached || 0))
                   ];
                 }
-                // Hover "Closed" bar — show status and confirmed+closed contributions
+                // Hover "Closed" bar (index 5) — show status and confirmed+closed contributions
                 if (ctx.dataIndex === 5) {
                   return [
                     '  Closed: ' + (stats.closed || 0),
                     '  Confirmed + Closed: ' + (stats.confirmedClosed || 0)
+                  ];
+                }
+                // Hover "Retired / Other" bar (index 6) — show breakdown of the 4 retired statuses
+                if (ctx.dataIndex === 6) {
+                  return [
+                    '  Total Retired: ' + legacyTotal,
+                    '  Patient Will Contact: ' + (stats.patientWillContact || 0),
+                    '  Call Dropped: ' + (stats.callDropped || 0),
+                    '  General Inquiry: ' + (stats.generalInquiry || 0),
+                    '  Not Interested: ' + (stats.notInterested || 0)
                   ];
                 }
                 return [];
@@ -588,9 +665,14 @@
 
   function closeClientDetailPage(syncHistory = true) {
     currentClientDetailId = null;
-    showSection(previousClientSectionId || 'clients-section', null, false);
+    const targetSection = previousClientSectionId || 'clients-section';
     if (syncHistory && history.state && history.state.section === 'client-detail-section') {
       history.back();
+      return;
+    }
+    showSection(targetSection, null, false);
+    if (targetSection === 'add-data-section' && typeof restoreAddDataState === 'function') {
+      restoreAddDataState();
     }
   }
 
@@ -622,7 +704,7 @@
     let leadsHtml = '';
     if (data.leads && data.leads.length > 0) {
       data.leads.forEach((lead, idx) => {
-        let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus)
+        let arrivalHtml = lead.arrivalStatus
           ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
         const dateHtml = leadDateHtml(lead);
         leadsHtml += `
@@ -781,6 +863,7 @@
     document.getElementById('tc-filter-name').value = '';
     document.getElementById('tc-filter-phone').value = '';
     document.getElementById('tc-filter-city').value = '';
+    document.getElementById('tc-filter-status').value = '';
     document.getElementById('tc-filter-sort').value = 'fresh';
     fetchTodayCalls(1);
   }
@@ -820,7 +903,7 @@
     let html = '';
     leads.forEach(lead => {
       let regIdHtml = lead.registrationId ? `<span><span class="material-icons">badge</span> ${lead.registrationId}</span>` : '';
-      let arrivalHtml = (lead.clientType === 'Returning' && lead.arrivalStatus) ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
+      let arrivalHtml = lead.arrivalStatus ? `<span><span class="material-icons">directions_walk</span> ${lead.arrivalStatus}</span>` : '';
       const dateHtml = leadDateHtml(lead);
       html += `
         <div class="lead-item">
@@ -876,13 +959,16 @@
     container.innerHTML = html;
   }
 
+  let leadJustCreated = false;
+
   // --- Lead Detail Page (replaces overlay) ---
-  function openLeadDetailPage(rowIndex, shouldPushState = true) {
+  function openLeadDetailPage(rowIndex, shouldPushState = true, leadId = null, isJustCreated = false) {
     currentDetailRowIndex = rowIndex;
+    leadJustCreated = Boolean(isJustCreated);
     // Remember which section we came from
     const fromSection = getActiveSectionId();
     if (fromSection !== 'lead-detail-section') {
-      previousSectionId = fromSection;
+      previousSectionId = (fromSection === 'add-data-section' && isJustCreated) ? 'all-leads-section' : fromSection;
     }
     
     // Navigate to lead-detail-section as a real page section
@@ -895,14 +981,17 @@
     
     document.getElementById('ld-page-body').innerHTML = '<div class="loading">Loading details...</div>';
     
-    if (shouldPushState) pushAppState({ section: 'lead-detail-section', rowIndex: rowIndex });
+    if (isJustCreated) {
+      history.replaceState({ view: 'app', section: 'all-leads-section' }, '', location.href);
+    }
+    if (shouldPushState) pushAppState({ section: 'lead-detail-section', rowIndex: rowIndex, leadId: leadId });
 
     google.script.run
       .withSuccessHandler(renderUserDetail)
       .withFailureHandler(function(error) {
         document.getElementById('ld-page-body').innerHTML = `<div class="detail-body"><div class="message error" style="display:block;">Error loading lead: ${error.message}</div></div>`;
       })
-      .getUserDetails(rowIndex);
+      .getUserDetails(rowIndex, leadId);
   }
 
   // Keep backward-compat alias so any other calls still work
@@ -912,8 +1001,12 @@
 
   function closeLeadDetailPage(syncHistory = true) {
     currentDetailRowIndex = null;
+    if (syncHistory && history.state && history.state.section === 'lead-detail-section') {
+      history.back();
+      return;
+    }
     // Refresh the list we came from
-    if (previousSectionId === 'all-leads-section') {
+    if (previousSectionId === 'all-leads-section' || (previousSectionId === 'add-data-section' && leadJustCreated)) {
       showSection('all-leads-section', null, false);
       fetchAllLeads(document.querySelector('#al-pagination .active') ? parseInt(document.querySelector('#al-pagination .active').textContent) : 1);
     } else if (previousSectionId === 'today-calls-section') {
@@ -926,11 +1019,13 @@
       } else {
         showSection('clients-section', null, false);
       }
+    } else if (previousSectionId === 'add-data-section') {
+      showSection('add-data-section', null, false);
+      if (typeof restoreAddDataState === 'function') {
+        restoreAddDataState();
+      }
     } else {
       showSection(previousSectionId || 'dashboard-section', null, false);
-    }
-    if (syncHistory && history.state && history.state.section === 'lead-detail-section') {
-      history.back();
     }
   }
 
@@ -948,6 +1043,23 @@
     body.setAttribute('data-client-row', user.clientRowIndex);
     body.setAttribute('data-row-index', user.rowIndex || '');
     
+    let justCreatedBanner = '';
+    if (leadJustCreated) {
+      leadJustCreated = false;
+      justCreatedBanner = `
+        <div class="message success" style="display: flex; align-items: center; gap: 12px; margin-bottom: 22px; padding: 14px 18px; border-radius: 10px; font-size: 14px; border: 1px solid #b7dfc1; background: #e6f4ea; color: #137333;">
+          <span class="material-icons" style="font-size: 26px; color: #137333; flex-shrink: 0;">check_circle</span>
+          <div>
+            <strong>Lead Created Successfully!</strong> You can now take instant action below: record conversation notes, set next contact date (CAD), update status, or assign a branch.
+          </div>
+        </div>
+      `;
+      setTimeout(() => {
+        const noteEl = document.getElementById('ud-new-conv');
+        if (noteEl) noteEl.focus();
+      }, 250);
+    }
+
     let convHtml = '';
     if (user.conversations && user.conversations.length > 0) {
       convHtml += '<div class="conversations-list" id="ud-conv-list">';
@@ -978,13 +1090,27 @@
       histHtml += '</div>';
     }
 
-    const statusOptions = [
-      'Pending', 'Confirmed', 'Not Interested', 'Follow Up', 
-      'Closed', 'Call Not Answered', 'General Inquiry',
-      'Patient Will Contact'
-    ].map(opt => 
-      `<option value="${opt}" ${user.status === opt ? 'selected' : ''}>${opt}</option>`
-    ).join('');
+    const activeStatuses = [
+      'Pending', 'Confirmed', 'Follow Up', 'Closed', 'Call Not Answered'
+    ];
+    const legacyStatuses = [
+      'Patient Will Contact', 'Call Dropped', 'General Inquiry', 'Not Interested'
+    ];
+
+    let optionsList = [...activeStatuses];
+    if (user.status && legacyStatuses.some(s => s.toLowerCase() === user.status.trim().toLowerCase())) {
+      const alreadyHas = optionsList.some(s => s.toLowerCase() === user.status.trim().toLowerCase());
+      if (!alreadyHas) {
+        optionsList.push(user.status.trim());
+      }
+    }
+
+    const statusOptions = optionsList.map(opt => {
+      const isSelected = user.status && opt.toLowerCase() === user.status.trim().toLowerCase();
+      const isLegacy = legacyStatuses.some(s => s.toLowerCase() === opt.trim().toLowerCase());
+      const labelText = isLegacy ? `${opt} (Legacy)` : opt;
+      return `<option value="${opt}" ${isSelected ? 'selected' : ''}>${labelText}</option>`;
+    }).join('');
 
     const branchOptions = ['', '100 Feet', 'Circular', 'Khalsa'].map(opt => 
       `<option value="${opt}" ${user.branch === opt ? 'selected' : ''}>${opt || 'Select Branch'}</option>`
@@ -995,6 +1121,7 @@
     ).join('');
 
     const html = `
+      ${justCreatedBanner}
       <div class="detail-summary">
         <div>
           <div class="detail-eyebrow">${user.clientType || 'New'} Lead</div>
@@ -1166,6 +1293,7 @@
         btn.disabled = false;
         btn.textContent = 'Update';
         textArea.value = '';
+        dashboardCache = {};
         
         // Update display text in place
         if(response.status) {
@@ -1223,27 +1351,180 @@
   }
 
   let currentCheckResults = null;
+  let phoneCheckDebounceTimer = null;
 
-  function resetAddDataFlow() {
-    document.getElementById('phone-check-container').style.display = 'block';
-    document.getElementById('existing-client-container').style.display = 'none';
+  function initPhoneInputWatcher() {
+    const phoneInput = document.getElementById('check-phone');
+    if (!phoneInput || phoneInput._watcherInitialized) return;
+    phoneInput._watcherInitialized = true;
+
+    phoneInput.addEventListener('input', function() {
+      // Remove any non-digit characters
+      let raw = this.value.replace(/\D/g, '');
+      // Handle paste with country code +91 or leading 0
+      if (raw.length > 10) {
+        if (raw.startsWith('91')) raw = raw.slice(2);
+        else if (raw.startsWith('0')) raw = raw.slice(1);
+      }
+      if (raw.length > 10) {
+        raw = raw.slice(0, 10);
+      }
+      this.value = raw;
+
+      if (phoneCheckDebounceTimer) {
+        clearTimeout(phoneCheckDebounceTimer);
+        phoneCheckDebounceTimer = null;
+      }
+
+      // If user typed or pasted exactly 10 digits, auto-check after a brief pause
+      if (raw.length === 10) {
+        phoneCheckDebounceTimer = setTimeout(() => {
+          verifyClientPhone();
+        }, 350);
+      }
+    });
+  }
+
+  function getAddDataSubStep() {
+    const newContainer = document.getElementById('new-client-container');
+    if (newContainer && newContainer.style.display !== 'none') {
+      return 'new-client';
+    }
+    const addLeadForSel = document.getElementById('add-lead-for-selected-client');
+    if (addLeadForSel && addLeadForSel.style.display !== 'none') {
+      return 'select-lead';
+    }
+    const existingContainer = document.getElementById('existing-client-container');
+    if (existingContainer && existingContainer.style.display !== 'none') {
+      return 'existing-clients';
+    }
+    return 'phone-check';
+  }
+
+  function renderExistingClientsList(clients) {
+    if (!clients || !Array.isArray(clients)) return;
+    let html = '';
+    clients.forEach(function(item) {
+      const c = item.client;
+      const ol = item.openLead;
+      
+      let clientDetailsHtml = `
+        <div class="client-select-card" style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <strong style="font-size: 18px; color: var(--primary);">${escapeHtml(c.name)}</strong> 
+              <span style="font-size: 13px; color: var(--text-light); margin-left: 5px;">(ID: ${escapeHtml(c.clientId)})</span>
+              <div style="margin-top: 8px; font-size: 14px; color: var(--text-dark); line-height: 1.5;">
+                <strong>City:</strong> ${escapeHtml(c.city)} <br>
+                <strong>Phone:</strong> ${escapeHtml(c.phone)} <br>
+                <strong>First Enq Date:</strong> ${escapeHtml(c.enqDate)}
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline" style="border-color: var(--primary); color: var(--primary);" onclick="openClientDetail('${c.clientId}')">View Profile</button>
+              <button type="button" class="btn btn-primary" onclick="selectClientForLead('${c.clientId}')">Select & Create Lead</button>
+            </div>
+          </div>
+      `;
+      
+      if (ol) {
+        const createdLabel = 'Lead Created: ' + (ol.enquiryDate || 'N/A');
+        const cadHtml = ol.contactAgainDate
+          ? `<span><span class="material-icons" style="font-size:16px;">event_repeat</span>CAD: ${escapeHtml(ol.contactAgainDate)}</span>`
+          : '';
+        clientDetailsHtml += `
+          <div class="existing-open-lead" style="margin-top: 15px;">
+            <button type="button" class="open-lead-card" onclick="openLeadDetailPage(${Number(ol.rowIndex)})" aria-label="Open existing open lead details" style="width: 100%; border: 1px solid #bddce4; background: #f7fbfc; padding: 12px; border-radius: 8px; text-align: left; cursor: pointer;">
+              <span class="open-lead-title" style="display: flex; align-items: center; gap: 6px; color: var(--primary); font-weight: 700; font-size: 14px; margin-bottom: 5px;">
+                <span class="material-icons" style="font-size: 18px;">assignment</span>
+                Open lead already active for this client
+              </span>
+              <span class="lead-meta" style="display: flex; gap: 15px; font-size: 12px; color: var(--text-light); flex-wrap: wrap;">
+                <span><span class="material-icons" style="font-size:16px;">calendar_today</span>${escapeHtml(createdLabel)}</span>
+                ${cadHtml}
+                ${statusBadge(ol.status)}
+              </span>
+              <span class="lead-note" style="display: block; margin-top: 6px; font-size: 13px; color: var(--text-light);"><strong>Last Note:</strong> ${escapeHtml(ol.latestConversation || 'No conversations yet')}</span>
+            </button>
+          </div>
+        `;
+      }
+      
+      clientDetailsHtml += `</div>`;
+      html += clientDetailsHtml;
+    });
+    const listEl = document.getElementById('existing-clients-list');
+    if (listEl) listEl.innerHTML = html;
+  }
+
+  function showExistingClientsView(shouldPushState = true) {
+    document.getElementById('phone-check-container').style.display = 'none';
     document.getElementById('new-client-container').style.display = 'none';
+    document.getElementById('existing-client-container').style.display = 'block';
     document.getElementById('add-lead-for-selected-client').style.display = 'none';
-    document.getElementById('existing-clients-list').innerHTML = '';
+    document.getElementById('existing-cancel-container').style.display = 'block';
+
+    if (currentCheckResults) {
+      renderExistingClientsList(currentCheckResults);
+    }
+    if (shouldPushState) {
+      pushAppState({ section: 'add-data-section', subStep: 'existing-clients' });
+    }
+  }
+
+  function resetAddDataFlow(updateHistory = true) {
+    if (phoneCheckDebounceTimer) {
+      clearTimeout(phoneCheckDebounceTimer);
+      phoneCheckDebounceTimer = null;
+    }
+    const phoneCheckContainer = document.getElementById('phone-check-container');
+    if (phoneCheckContainer) phoneCheckContainer.style.display = 'block';
+
+    const existingContainer = document.getElementById('existing-client-container');
+    if (existingContainer) existingContainer.style.display = 'none';
+
+    const newContainer = document.getElementById('new-client-container');
+    if (newContainer) newContainer.style.display = 'none';
+
+    const addLeadForSel = document.getElementById('add-lead-for-selected-client');
+    if (addLeadForSel) addLeadForSel.style.display = 'none';
+
+    const listEl = document.getElementById('existing-clients-list');
+    if (listEl) listEl.innerHTML = '';
     
-    document.getElementById('check-phone').value = '';
-    document.getElementById('verify-message').style.display = 'none';
+    const checkPhone = document.getElementById('check-phone');
+    if (checkPhone) checkPhone.value = '';
+
+    const verifyMsg = document.getElementById('verify-message');
+    if (verifyMsg) verifyMsg.style.display = 'none';
     
-    document.getElementById('add-lead-existing-form').reset();
-    document.getElementById('existing-message').style.display = 'none';
+    const exForm = document.getElementById('add-lead-existing-form');
+    if (exForm) exForm.reset();
+
+    const exMsg = document.getElementById('existing-message');
+    if (exMsg) exMsg.style.display = 'none';
     
-    document.getElementById('add-data-form').reset();
-    document.getElementById('add-message').style.display = 'none';
+    const addForm = document.getElementById('add-data-form');
+    if (addForm) addForm.reset();
+
+    const addMsg = document.getElementById('add-message');
+    if (addMsg) addMsg.style.display = 'none';
+
     currentCheckResults = null;
+    initPhoneInputWatcher();
+
+    if (updateHistory && appHistoryReady && history.state && history.state.section === 'add-data-section') {
+      history.replaceState({ view: 'app', section: 'add-data-section', subStep: 'phone-check' }, '', location.href);
+    }
   }
 
   function verifyClientPhone() {
-    const phone = document.getElementById('check-phone').value.trim();
+    if (phoneCheckDebounceTimer) {
+      clearTimeout(phoneCheckDebounceTimer);
+      phoneCheckDebounceTimer = null;
+    }
+    const phoneInput = document.getElementById('check-phone');
+    const phone = phoneInput ? phoneInput.value.trim().replace(/\D/g, '') : '';
     if (!phone) return alert('Please enter a phone number to check.');
     if (!/^\d{10}$/.test(phone)) return alert('Phone number must be exactly 10 digits.');
     
@@ -1251,80 +1532,48 @@
     const msg = document.getElementById('verify-message');
     
     btn.disabled = true;
-    btn.textContent = 'Checking...';
+    btn.innerHTML = '<span class="material-icons" style="font-size:18px; vertical-align:middle; margin-right:4px;">hourglass_empty</span> Checking number...';
     msg.style.display = 'none';
     
     google.script.run
       .withSuccessHandler(function(response) {
         btn.disabled = false;
-        btn.textContent = 'Check Client';
+        btn.innerHTML = '<span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 4px;">search</span> Check Client';
         
         document.getElementById('phone-check-container').style.display = 'none';
         
         if (response.exists) {
           currentCheckResults = response.clients;
-          document.getElementById('existing-client-container').style.display = 'block';
-          document.getElementById('add-lead-for-selected-client').style.display = 'none';
-          document.getElementById('existing-cancel-container').style.display = 'block';
-          
-          let html = '';
-          response.clients.forEach(function(item) {
-            const c = item.client;
-            const ol = item.openLead;
-            
-            let clientDetailsHtml = `
-              <div class="client-select-card" style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: all 0.2s;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
-                  <div>
-                    <strong style="font-size: 18px; color: var(--primary);">${escapeHtml(c.name)}</strong> 
-                    <span style="font-size: 13px; color: var(--text-light); margin-left: 5px;">(ID: ${escapeHtml(c.clientId)})</span>
-                    <div style="margin-top: 8px; font-size: 14px; color: var(--text-dark); line-height: 1.5;">
-                      <strong>City:</strong> ${escapeHtml(c.city)} <br>
-                      <strong>Phone:</strong> ${escapeHtml(c.phone)} <br>
-                      <strong>First Enq Date:</strong> ${escapeHtml(c.enqDate)}
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-outline" style="border-color: var(--primary); color: var(--primary);" onclick="selectClientForLead('${c.clientId}')">Select Client</button>
-                </div>
-            `;
-            
-            if (ol) {
-              const createdLabel = 'Lead Created: ' + (ol.enquiryDate || 'N/A');
-              const cadHtml = ol.contactAgainDate
-                ? `<span><span class="material-icons" style="font-size:16px;">event_repeat</span>CAD: ${escapeHtml(ol.contactAgainDate)}</span>`
-                : '';
-              clientDetailsHtml += `
-                <div class="existing-open-lead" style="margin-top: 15px;">
-                  <button type="button" class="open-lead-card" onclick="openLeadDetailPage(${Number(ol.rowIndex)})" aria-label="Open existing open lead details" style="width: 100%; border: 1px solid #bddce4; background: #f7fbfc; padding: 12px; border-radius: 8px; text-align: left; cursor: pointer;">
-                    <span class="open-lead-title" style="display: flex; align-items: center; gap: 6px; color: var(--primary); font-weight: 700; font-size: 14px; margin-bottom: 5px;">
-                      <span class="material-icons" style="font-size: 18px;">assignment</span>
-                      Open lead found
-                    </span>
-                    <span class="lead-meta" style="display: flex; gap: 15px; font-size: 12px; color: var(--text-light); flex-wrap: wrap;">
-                      <span><span class="material-icons" style="font-size:16px;">calendar_today</span>${escapeHtml(createdLabel)}</span>
-                      ${cadHtml}
-                      ${statusBadge(ol.status)}
-                    </span>
-                    <span class="lead-note" style="display: block; margin-top: 6px; font-size: 13px; color: var(--text-light);"><strong>Last Note:</strong> ${escapeHtml(ol.latestConversation || 'No conversations yet')}</span>
-                  </button>
-                </div>
-              `;
-            }
-            
-            clientDetailsHtml += `</div>`;
-            html += clientDetailsHtml;
-          });
-          document.getElementById('existing-clients-list').innerHTML = html;
-          
+          renderExistingClientsList(response.clients);
+          showExistingClientsView(true);
         } else {
+          currentCheckResults = null;
           document.getElementById('new-client-container').style.display = 'block';
+          const newBannerSub = document.getElementById('new-banner-subtitle');
+          if (newBannerSub) {
+            newBannerSub.textContent = `No prior client found with phone ${phone}. Enter client details below to create their profile and first lead.`;
+          }
+          const backBtn = document.getElementById('new-client-back-btn');
+          if (backBtn) {
+            backBtn.style.display = 'inline-flex';
+            backBtn.innerHTML = '<span class="material-icons">arrow_back</span> Check Different Phone Number';
+          }
+          const cancelBtn = document.getElementById('new-client-cancel-btn');
+          if (cancelBtn) {
+            cancelBtn.textContent = 'Cancel / Start Over';
+          }
           document.getElementById('phone').value = phone; // Pre-fill phone
           document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
+          pushAppState({ section: 'add-data-section', subStep: 'new-client' });
+          setTimeout(() => {
+            const nameInput = document.getElementById('name');
+            if (nameInput) nameInput.focus();
+          }, 100);
         }
       })
       .withFailureHandler(function(error) {
         btn.disabled = false;
-        btn.textContent = 'Check Client';
+        btn.innerHTML = '<span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 4px;">search</span> Check Client';
         msg.className = 'message error';
         msg.textContent = 'Error: ' + error.message;
         msg.style.display = 'block';
@@ -1332,7 +1581,7 @@
       .checkPhoneExists(phone);
   }
 
-  function selectClientForLead(clientId) {
+  function selectClientForLead(clientId, shouldPushState = true) {
     if (!currentCheckResults) return;
     const item = currentCheckResults.find(function(x) { return x.client.clientId === clientId; });
     if (!item) return;
@@ -1343,20 +1592,114 @@
     document.getElementById('existing-cancel-container').style.display = 'none';
     document.getElementById('ex-enquiryDate').valueAsDate = new Date();
     document.getElementById('add-lead-for-selected-client').scrollIntoView({ behavior: 'smooth' });
+    if (shouldPushState) {
+      pushAppState({ section: 'add-data-section', subStep: 'select-lead', clientId: clientId });
+    }
   }
 
-  function cancelSelectedClientLead() {
+  function cancelSelectedClientLead(syncHistory = true) {
     document.getElementById('add-lead-for-selected-client').style.display = 'none';
     document.getElementById('existing-cancel-container').style.display = 'block';
-    document.getElementById('add-lead-existing-form').reset();
+    const exForm = document.getElementById('add-lead-existing-form');
+    if (exForm) exForm.reset();
+    const exMsg = document.getElementById('existing-message');
+    if (exMsg) exMsg.style.display = 'none';
+    
+    const exContainer = document.getElementById('existing-client-container');
+    if (exContainer) exContainer.scrollIntoView({ behavior: 'smooth' });
+
+    if (syncHistory && history.state && history.state.subStep === 'select-lead') {
+      history.back();
+    }
   }
 
-  function showNewClientFormForExistingNumber() {
-    const phone = document.getElementById('check-phone').value.trim();
+  function showNewClientFormForExistingNumber(shouldPushState = true) {
+    const phoneInput = document.getElementById('check-phone');
+    const phone = phoneInput ? phoneInput.value.trim().replace(/\D/g, '') : (currentCheckResults && currentCheckResults[0] ? currentCheckResults[0].client.phone : '');
     document.getElementById('existing-client-container').style.display = 'none';
     document.getElementById('new-client-container').style.display = 'block';
+    
+    const newBannerSub = document.getElementById('new-banner-subtitle');
+    if (newBannerSub) {
+      newBannerSub.textContent = `Registering a new client profile under phone ${phone}.`;
+    }
+    const backBtn = document.getElementById('new-client-back-btn');
+    if (backBtn) {
+      backBtn.style.display = 'inline-flex';
+      backBtn.innerHTML = '<span class="material-icons">arrow_back</span> Back to Existing Clients';
+    }
+    const cancelBtn = document.getElementById('new-client-cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.textContent = 'Back to Existing Clients';
+    }
+
     document.getElementById('phone').value = phone; // Pre-fill phone
     document.getElementById('enquiryDate').valueAsDate = new Date(); // Pre-fill date
+    
+    if (shouldPushState) {
+      pushAppState({ section: 'add-data-section', subStep: 'new-client' });
+    }
+
+    setTimeout(() => {
+      const nameInput = document.getElementById('name');
+      if (nameInput) nameInput.focus();
+    }, 100);
+  }
+
+  function cancelNewClientForm(syncHistory = true) {
+    if (currentCheckResults && currentCheckResults.length > 0) {
+      document.getElementById('new-client-container').style.display = 'none';
+      document.getElementById('existing-client-container').style.display = 'block';
+      document.getElementById('add-lead-for-selected-client').style.display = 'none';
+      document.getElementById('existing-cancel-container').style.display = 'block';
+      
+      const form = document.getElementById('add-data-form');
+      if (form) form.reset();
+      const msg = document.getElementById('add-message');
+      if (msg) msg.style.display = 'none';
+
+      if (syncHistory && history.state && history.state.subStep === 'new-client') {
+        history.back();
+      }
+    } else {
+      resetAddDataFlow();
+      if (syncHistory && history.state && history.state.subStep === 'new-client') {
+        history.back();
+      }
+    }
+  }
+
+  function restoreAddDataState(state) {
+    const subStep = (state && state.subStep) ? state.subStep : (currentCheckResults && currentCheckResults.length > 0 ? 'existing-clients' : 'phone-check');
+    
+    if (subStep === 'select-lead' && state && state.clientId && currentCheckResults && currentCheckResults.length > 0) {
+      showExistingClientsView(false);
+      selectClientForLead(state.clientId, false);
+    } else if (subStep === 'new-client') {
+      if (currentCheckResults && currentCheckResults.length > 0) {
+        showNewClientFormForExistingNumber(false);
+      } else {
+        const phoneInput = document.getElementById('check-phone');
+        const phone = phoneInput ? phoneInput.value.trim().replace(/\D/g, '') : '';
+        document.getElementById('phone-check-container').style.display = 'none';
+        document.getElementById('existing-client-container').style.display = 'none';
+        document.getElementById('new-client-container').style.display = 'block';
+        const backBtn = document.getElementById('new-client-back-btn');
+        if (backBtn) {
+          backBtn.style.display = 'inline-flex';
+          backBtn.innerHTML = '<span class="material-icons">arrow_back</span> Check Different Phone Number';
+        }
+        const cancelBtn = document.getElementById('new-client-cancel-btn');
+        if (cancelBtn) cancelBtn.textContent = 'Cancel / Start Over';
+      }
+    } else if (subStep === 'existing-clients' && currentCheckResults && currentCheckResults.length > 0) {
+      showExistingClientsView(false);
+    } else {
+      document.getElementById('phone-check-container').style.display = 'block';
+      document.getElementById('existing-client-container').style.display = 'none';
+      document.getElementById('new-client-container').style.display = 'none';
+      document.getElementById('add-lead-for-selected-client').style.display = 'none';
+    }
   }
 
   function handleAddLeadExisting(event) {
@@ -1371,17 +1714,26 @@
     };
     
     btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.textContent = 'Creating Lead...';
     msgDiv.style.display = 'none';
     
     google.script.run
       .withSuccessHandler(function(response) {
-        msgDiv.className = 'message success';
-        msgDiv.textContent = response.message;
-        msgDiv.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'Create Lead for Client';
-        setTimeout(() => resetAddDataFlow(), 2000);
+
+        if (response.success && response.leadRowIndex) {
+          dashboardCache = {};
+          showToast(response.message || 'Lead created successfully! Opening lead details...', 'success');
+          resetAddDataFlow();
+          openLeadDetailPage(response.leadRowIndex, true, response.leadId, true);
+        } else {
+          dashboardCache = {};
+          msgDiv.className = 'message success';
+          msgDiv.textContent = response.message;
+          msgDiv.style.display = 'block';
+          setTimeout(() => resetAddDataFlow(), 2000);
+        }
       })
       .withFailureHandler(function(error) {
         msgDiv.className = 'message error';
@@ -1399,7 +1751,7 @@
     const msgDiv = document.getElementById('add-message');
     
     btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.textContent = 'Saving Client & Lead...';
     msgDiv.className = 'message';
     msgDiv.textContent = '';
     msgDiv.style.display = 'none';
@@ -1410,19 +1762,24 @@
 
     google.script.run
       .withSuccessHandler(function(response) {
-        if(response.success) {
+        btn.disabled = false;
+        btn.textContent = 'Save Client';
+
+        if (response.success && response.leadRowIndex) {
+          dashboardCache = {};
+          showToast(response.message || 'Client & Lead created successfully! Opening lead details...', 'success');
+          resetAddDataFlow();
+          openLeadDetailPage(response.leadRowIndex, true, response.leadId, true);
+        } else if (response.success) {
+          dashboardCache = {};
           msgDiv.className = 'message success';
           msgDiv.textContent = response.message;
           msgDiv.style.display = 'block';
-          btn.disabled = false;
-          btn.textContent = 'Save Client';
           setTimeout(() => resetAddDataFlow(), 2000);
         } else {
           msgDiv.className = 'message error';
           msgDiv.textContent = response.message;
           msgDiv.style.display = 'block';
-          btn.disabled = false;
-          btn.textContent = 'Save Client';
         }
       })
       .withFailureHandler(function(error) {
@@ -1525,4 +1882,7 @@
     }
   });
 
+  document.addEventListener('DOMContentLoaded', function() {
+    initPhoneInputWatcher();
+  });
 </script>

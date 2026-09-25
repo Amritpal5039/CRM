@@ -383,8 +383,18 @@ function addLeadForExistingClient(clientId, data) {
       "Returning",
       "" // Arrival Status
     ]);
+    SpreadsheetApp.flush();
+    const leadRowIndex = leadsSheet.getLastRow();
     
-    return { success: true, message: "New lead added to existing client successfully." };
+    clearDashboardCache();
+
+    return {
+      success: true,
+      message: "New lead created successfully (" + leadId + ")",
+      clientId: clientId,
+      leadId: leadId,
+      leadRowIndex: leadRowIndex
+    };
   } finally {
     lock.releaseLock();
   }
@@ -476,8 +486,18 @@ function addCustomer(data) {
       "New",
       "" // Arrival Status
     ]);
+    SpreadsheetApp.flush();
+    const leadRowIndex = leadsSheet.getLastRow();
 
-    return { success: true, message: "New client and lead created successfully (" + clientId + ")" };
+    clearDashboardCache();
+
+    return {
+      success: true,
+      message: "New client and lead created successfully (" + leadId + ")",
+      clientId: clientId,
+      leadId: leadId,
+      leadRowIndex: leadRowIndex
+    };
   } finally {
     lock.releaseLock();
   }
@@ -645,7 +665,8 @@ function getFilteredLeads(params) {
       if (params.regIdFilter === "with" && !regId) match = false;
       if (params.regIdFilter === "without" && regId) match = false;
       if (params.regIdFilter === "reached" && arrStatus !== "reached") match = false;
-      if (params.regIdFilter === "not_reached" && arrStatus !== "not reached") match = false;
+      if (params.regIdFilter === "not_reached" && arrStatus !== "" && arrStatus !== "not reached") match = false;
+      if (params.regIdFilter === "closed" && arrStatus !== "closed") match = false;
     }
 
     // Text filters
@@ -832,14 +853,33 @@ function getClientDetailsWithLeads(clientId) {
   };
 }
 
-// Fetch single user by row index
-function getUserDetails(leadRowIndex) {
-  const rIndex = parseInt(leadRowIndex, 10);
-  if (isNaN(rIndex)) {
-    throw new Error("Invalid lead row index.");
-  }
+// Fetch single user by row index (or leadId fallback)
+function getUserDetails(leadRowIndex, leadId) {
+  let rIndex = parseInt(leadRowIndex, 10);
   const leadsSheet = getLeadsSheet();
-  const leadRow = leadsSheet.getRange(rIndex, 1, 1, 11).getValues()[0];
+  let leadRow = null;
+
+  if (!isNaN(rIndex) && rIndex > 1 && rIndex <= leadsSheet.getLastRow()) {
+    const row = leadsSheet.getRange(rIndex, 1, 1, 11).getValues()[0];
+    if (!leadId || String(row[0]) === String(leadId)) {
+      leadRow = row;
+    }
+  }
+
+  if (!leadRow && leadId) {
+    const data = leadsSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(leadId)) {
+        leadRow = data[i];
+        rIndex = i + 1;
+        break;
+      }
+    }
+  }
+
+  if (!leadRow) {
+    throw new Error("Lead not found.");
+  }
   
   const clientId = leadRow[1];
   
@@ -879,7 +919,7 @@ function getUserDetails(leadRowIndex) {
   } catch(e) {}
 
   return {
-    rowIndex: leadRowIndex,
+    rowIndex: rIndex,
     clientRowIndex: clientRowIndex,
     id: leadRow[0],
     clientId: clientRow[0],
@@ -929,7 +969,15 @@ function addConversation(
   const clientsSheet = getClientsSheet();
 
   // Update Lead
-  if (status) leadsSheet.getRange(rIndex, 5).setValue(status);
+  if (status) {
+    const legacyStatuses = ["patient will contact", "call dropped", "general inquiry", "not interested"];
+    const statusLower = status.trim().toLowerCase();
+    const origStatusLower = originalStatus ? originalStatus.trim().toLowerCase() : "";
+    if (legacyStatuses.indexOf(statusLower) !== -1 && statusLower !== origStatusLower) {
+      throw new Error("Status '" + status + "' has been retired and cannot be assigned to leads.");
+    }
+    leadsSheet.getRange(rIndex, 5).setValue(status);
+  }
   if (branch !== undefined) leadsSheet.getRange(rIndex, 6).setValue(branch);
   if (contactAgainDate !== undefined) leadsSheet.getRange(rIndex, 7).setValue(contactAgainDate);
   if (arrivalStatus !== undefined) leadsSheet.getRange(rIndex, 11).setValue(arrivalStatus);
@@ -983,6 +1031,8 @@ function addConversation(
     historyCell.setValue(JSON.stringify(editHistory));
   }
 
+  clearDashboardCache();
+
   return {
     success: true,
     message: "Data updated",
@@ -997,29 +1047,98 @@ function addConversation(
   };
 }
 
-function getDashboardStats(startDateStr, endDateStr) {
-  const clientsSheet = getClientsSheet();
-  const leadsSheet = getLeadsSheet();
-  const clientsData = clientsSheet.getDataRange().getValues();
-  const leadsData = leadsSheet.getDataRange().getValues();
-  
-  if (leadsData.length <= 1) return { 
-    total: 0, confirmed: 0, confirmedWithReg: 0, confirmedWithoutReg: 0, 
-    pending: 0, followUp: 0, notInterested: 0, 
-    closed: 0, callNotAnswered: 0, generalInquiry: 0, callDropped: 0, patientWillContact: 0,
-    overallConversionRate: "0.00", newClientConversionRate: "0.00", returningReengagementRate: "0.00",
-    timeline: {}, sources: {}, leadBy: {} 
-  };
+function clearDashboardCache() {
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.put("dash_v", String(Date.now()), 21600);
+  } catch (e) {}
+}
 
-  const clientsMap = {};
-  for(let i = 1; i < clientsData.length; i++) {
-    clientsMap[clientsData[i][0]] = { 
-      regId: clientsData[i][4],
-      city: String(clientsData[i][2] || "Unknown").trim()
-    };
+function getEmptyDashboardStats() {
+  return { 
+    total: 0, 
+    newLeadsTotal: 0,
+    returningLeadsTotal: 0,
+    newLeadsConverted: 0,
+    returningLeadsReengaged: 0,
+    confirmedWithReg: 0,
+    confirmedWithoutReg: 0,
+    confirmedReached: 0,
+    confirmedNotReached: 0,
+    confirmedClosed: 0,
+    confirmed: 0,
+    closed: 0,
+    closedTotal: 0,
+    otherGroup: 0,
+    pending: 0,
+    followUp: 0,
+    notInterested: 0,
+    callNotAnswered: 0,
+    generalInquiry: 0,
+    callDropped: 0,
+    patientWillContact: 0,
+    overallConversionRate: "0.00",
+    newClientConversionRate: "0.00",
+    returningReengagementRate: "0.00",
+    topLeadCities: [],
+    timeline: {},
+    sources: {},
+    leadBy: {},
+    branchStats: {},
+    citiesLead: {},
+    citiesConv: {}
+  };
+}
+
+function formatEnqDateFast(enqDate) {
+  if (enqDate instanceof Date) {
+    const y = enqDate.getFullYear();
+    const m = enqDate.getMonth() + 1;
+    const d = enqDate.getDate();
+    return y + "-" + (m < 10 ? "0" + m : m) + "-" + (d < 10 ? "0" + d : d);
+  }
+  if (typeof enqDate === "string" && enqDate) {
+    return enqDate.substring(0, 10);
+  }
+  return "";
+}
+
+function getDashboardStats(startDateStr, endDateStr) {
+  // 1. Check Script Cache for instant response
+  const cache = CacheService.getScriptCache();
+  const v = cache.get("dash_v") || "1";
+  const cacheKey = "ds_" + v + "_" + (startDateStr || "all") + "_" + (endDateStr || "all");
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (e) {}
   }
 
-  const rows = leadsData.slice(1);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const clientsSheet = ss.getSheetByName(CLIENTS_SHEET);
+  const leadsSheet = ss.getSheetByName(LEADS_SHEET);
+
+  if (!leadsSheet) return getEmptyDashboardStats();
+  const lastLeadRow = leadsSheet.getLastRow();
+  if (lastLeadRow <= 1) return getEmptyDashboardStats();
+
+  // 2. Optimized Clients fetch: only columns 1..5 (skips huge Column 8 EditHistory JSON)
+  const lastClientRow = clientsSheet ? clientsSheet.getLastRow() : 0;
+  const clientsMap = {};
+  if (lastClientRow > 1) {
+    const clientsData = clientsSheet.getRange(2, 1, lastClientRow - 1, 5).getValues();
+    for (let i = 0; i < clientsData.length; i++) {
+      clientsMap[clientsData[i][0]] = {
+        city: String(clientsData[i][2] || "Unknown").trim(),
+        regId: clientsData[i][4]
+      };
+    }
+  }
+
+  // 3. Optimized Leads fetch: read cols 1-7 and cols 9-11 (skips huge Column 8 Conversations JSON)
+  const leadCols1to7 = leadsSheet.getRange(2, 1, lastLeadRow - 1, 7).getValues();
+  const leadCols9to11 = leadsSheet.getRange(2, 9, lastLeadRow - 1, 3).getValues();
 
   let stats = {
     total: 0,
@@ -1029,10 +1148,10 @@ function getDashboardStats(startDateStr, endDateStr) {
     returningLeadsReengaged: 0,
     confirmedWithReg: 0,
     confirmedWithoutReg: 0,
-    confirmedReached: 0,      // Reached: both New (with reg) AND Returning (reached)
-    confirmedNotReached: 0,   // Not Reached: both New and Returning
+    confirmedReached: 0,
+    confirmedNotReached: 0,
     confirmedClosed: 0,
-    otherGroup: 0,            // Pending + FollowUp + NotInt + NoAns + Dropped (for bar chart)
+    otherGroup: 0,
     pending: 0,
     followUp: 0,
     notInterested: 0,
@@ -1049,37 +1168,30 @@ function getDashboardStats(startDateStr, endDateStr) {
     citiesConv: {}
   };
 
-  rows.forEach((row) => {
-    let enqDate = row[2];
-    let dStr = "";
-
-    if (enqDate instanceof Date) {
-      dStr = Utilities.formatDate(enqDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
-    } else if (typeof enqDate === "string" && enqDate) {
-      dStr = enqDate.substring(0, 10);
-    }
+  const numRows = leadCols1to7.length;
+  for (let i = 0; i < numRows; i++) {
+    const enqDate = leadCols1to7[i][2];
+    const dStr = formatEnqDateFast(enqDate);
 
     if (dStr && (!startDateStr || dStr >= startDateStr) && (!endDateStr || dStr <= endDateStr)) {
       stats.total++;
-      
-      const clientId = row[1];
-      const sourceStr = String(row[3] || "Unknown").trim();
-      const statusStr = String(row[4] || "Pending").trim().toLowerCase();
-      const leadByStr = String(row[8] || "Unknown").trim();
-      const clientType = String(row[9] || "New").trim(); // "New" or "Returning"
-      
+
+      const clientId = leadCols1to7[i][1];
+      const sourceStr = String(leadCols1to7[i][3] || "Unknown").trim();
+      const statusStr = String(leadCols1to7[i][4] || "Pending").trim().toLowerCase();
+      const branchStr = String(leadCols1to7[i][5] || "").trim();
+      const leadByStr = String(leadCols9to11[i][0] || "Unknown").trim();
+      const clientType = String(leadCols9to11[i][1] || "New").trim();
+      const arrivalStatusStr = String(leadCols9to11[i][2] || "").trim().toLowerCase();
+
       const client = clientsMap[clientId] || {};
       const regId = String(client.regId || "").trim();
-      const arrivalStatusStr = String(row[10] || "").trim().toLowerCase();
-      
-      // Basic fuzzy grouping: lowercase and strip non-letters to group spelling variations 
-      // (e.g., "New York", "newyork", " New  York")
+
       let cityRaw = client.city || "Unknown";
       let city = cityRaw.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (city === "") city = "unknown";
-      
+
       let isConverted = false;
-      // A lead is "reached" if New+confirmed+arrivalStatus=reached, OR Returning+confirmed+arrivalStatus=reached
       const isReached = statusStr === "confirmed" && arrivalStatusStr === "reached";
 
       if (clientType === "New") {
@@ -1109,18 +1221,16 @@ function getDashboardStats(startDateStr, endDateStr) {
         }
       }
 
-      // Status breakdown — unified reached bucket for both New and Returning
+      // Status breakdown
       if (statusStr === "confirmed") {
         if (arrivalStatusStr === "reached") {
-          // Both New (with reg) AND Returning confirmed+reached count here
           stats.confirmedReached++;
-          if (clientType === "New" && regId !== "") stats.confirmedWithReg++; // keep old counter for compat
+          if (clientType === "New" && regId !== "") stats.confirmedWithReg++;
         } else if (arrivalStatusStr === "not reached") {
           stats.confirmedNotReached++;
         } else if (arrivalStatusStr === "closed") {
           stats.confirmedClosed++;
         } else {
-          // New with no arrival status yet, or returning with no arrival — fallback
           stats.confirmedWithoutReg++;
         }
       } else if (statusStr === "pending") {
@@ -1154,21 +1264,20 @@ function getDashboardStats(startDateStr, endDateStr) {
       if (!stats.leadBy[leadByStr]) stats.leadBy[leadByStr] = 0;
       stats.leadBy[leadByStr]++;
 
-      // Branch breakdown (only count leads that have a branch assigned)
-      const branchStr = String(row[5] || "").trim();
+      // Branch breakdown
       if (branchStr) {
         if (!stats.branchStats[branchStr]) stats.branchStats[branchStr] = 0;
         stats.branchStats[branchStr]++;
       }
 
-      // Timeline breakdown — track total and all confirmed+reached (New + Returning)
+      // Timeline breakdown
       if (!stats.timeline[dStr]) stats.timeline[dStr] = { total: 0, reached: 0 };
       stats.timeline[dStr].total++;
       if (isReached) {
         stats.timeline[dStr].reached++;
       }
     }
-  });
+  }
 
   const sortedTimeline = {};
   Object.keys(stats.timeline).sort().forEach((k) => { sortedTimeline[k] = stats.timeline[k]; });
@@ -1194,6 +1303,11 @@ function getDashboardStats(startDateStr, endDateStr) {
   
   cityList.sort((a, b) => b.count - a.count);
   stats.topLeadCities = cityList.slice(0, 5);
+
+  // Store in cache for 5 minutes (300 seconds)
+  try {
+    cache.put(cacheKey, JSON.stringify(stats), 300);
+  } catch (e) {}
 
   return stats;
 }
